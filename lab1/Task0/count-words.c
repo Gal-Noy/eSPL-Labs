@@ -7,12 +7,15 @@
 /* return string "word" if the count is 1 or "words" otherwise */
 char *words(int count)
 {
-  char *words = malloc(sizeof(char)*5);
-  strcpy(words, "words");
-  if (count == 1)
-    	words[strlen(words)-1] = '\0';
+  char *words = "words";
+  char *new_words = malloc(sizeof(char)*5);
+  for (int i = 0; i < 5; i++)
+    new_words[i] = words[i];
 
-  return words;
+  if (count == 1)
+    	new_words[strlen(words)-1] = '\0';
+
+  return new_words;
 }
 
 /* print a message reportint the number of words */
