@@ -72,7 +72,7 @@ int main(int argc, char **argv)
     iarray2Ptr = &iarray2[0];
     carray2Ptr = &carray2[0];
     for (int i = 0; i < 3; i++)
-	printf("%d ", *(iarray2Ptr+i));
+	    printf("%d ", *(iarray2Ptr+i));
     printf(", ");
     for (int i = 0; i < 3; i++) 
         printf("%c ", *(carray2Ptr+i));
@@ -102,6 +102,7 @@ void point_at(void *p)
     
     printf("Check long type mem size (T1a):\n");
     /* part of task 1 a here */
+    printf("%d\n", sizeof(long));
 
     printf("- addr0: %p\n", &addr0);
     printf("- addr1: %p\n", &addr1);
