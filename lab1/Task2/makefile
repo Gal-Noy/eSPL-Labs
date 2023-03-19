@@ -1,10 +1,10 @@
-all: base
+all: menu_map
 
-base: base.o
-	gcc -g -m32 -Wall base.o -o base
+menu_map: menu_map.o
+	gcc -g -m32 -Wall menu_map.o -o menu_map
 
-base.o: base.c
-	gcc -g -m32 -Wall -c base.c
+menu_map.o: menu_map.c
+	gcc -g -m32 -Wall -c menu_map.c
 
 clean:
 	rm -f *.o

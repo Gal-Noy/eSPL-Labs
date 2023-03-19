@@ -34,43 +34,45 @@ char xprt(char c){
 }
 
 int main(int argc, char **argv){
-        char *carray = malloc(sizeof(char)*5);
+  typedef struct fun_desc {
+  char *name;
+  char (*fun)(char);
+  } fun_desc;
 
-        typedef struct fun_desc {
-        char *name;
-        char (*fun)(char);
-        } fun_desc;
+  char *carray, *line;
+  int idx;
 
-        struct fun_desc menu[] = { { "Get string", &my_get }, { "Print string", &cprt }, { "Print hex", &xprt }, { "Encrypt", &encrypt }, { "Decrypt", &decrypt }, { NULL, NULL } };
-        
-        printf("Please choose a function:\n");
-        for (int i = 0; i < 5; i++)
-                        printf("%d) %s\n", i, menu[i].name);
-        printf("Option: ");
+  carray = malloc(sizeof(char)*5);
+  struct fun_desc menu[] = { { "Get string", &my_get }, { "Print string", &cprt }, { "Print hex", &xprt }, { "Encrypt", &encrypt }, { "Decrypt", &decrypt }, { NULL, NULL } };
 
-        char *line = malloc(sizeof(char)*3);
-        while ((fgets(line,3, stdin)) != NULL){
-                    int idx = *line - '0';
-                    if (idx < 0 || idx > 4){
-                        printf("Not within bounds.\n");
-                        free(line);
-                        free(carray);
-                        exit(0);
-                    }
-                    else
-                        printf("Within bounds.\n");
+  printf("Please choose a function:\n");
+  for (int i = 0; i < 5; i++)
+    printf("%d) %s\n", i, menu[i].name);
+  printf("Option: ");
 
-                    carray = map(carray, 5, menu[idx].fun);
-
-                    printf("DONE.\n");
-
-                    printf("\nPlease choose a function:\n");
-                    for (int i = 0; i < 5; i++)
-                        printf("%d) %s\n", i, menu[i].name);
-                    printf("Option: ");
-                }
-
+  line = malloc(sizeof(char)*3);
+  while ((fgets(line,3, stdin)) != NULL){
+    idx = *line - '0';
+    if (idx < 0 || idx > 4){
+        printf("Not within bounds.\n");
         free(line);
         free(carray);
-        return 0;
+        exit(0);
+    }
+    else
+        printf("Within bounds.\n");
+
+    carray = map(carray, 5, menu[idx].fun);
+
+    printf("DONE.\n");
+
+    printf("\nPlease choose a function:\n");
+    for (int i = 0; i < 5; i++)
+        printf("%d) %s\n", i, menu[i].name);
+    printf("Option: ");
+  }
+
+  free(line);
+  free(carray);
+  return 0;
 }

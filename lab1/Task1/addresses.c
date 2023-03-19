@@ -54,14 +54,14 @@ int main(int argc, char **argv)
     double darray[3];
     char carray[3]; 
     /* task 1 b here */
-    printf("%p\n", iarray);
-    printf("%p\n", iarray+1);
-    printf("%p\n", farray);
-    printf("%p\n", farray+1);
-    printf("%p\n", darray);
-    printf("%p\n", darray+1);
-    printf("%p\n", carray);
-    printf("%p\n", carray+1);
+    printf("%p\n", &iarray);
+    printf("%p\n", &iarray+1);
+    printf("%p\n", &farray);
+    printf("%p\n", &farray+1);
+    printf("%p\n", &darray);
+    printf("%p\n", &darray+1);
+    printf("%p\n", &carray);
+    printf("%p\n", &carray+1);
     
     printf("Pointers and arrays (T1d): ");
     int iarray2[] = {1,2,3};
