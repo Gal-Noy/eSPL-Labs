@@ -24,7 +24,6 @@ int print_word_count(char **argv)
     ++count;
   char *wordss = words(count);
   printf("The sentence contains %d %s.\n", count, wordss);
- //  free(wordss);
   return count;
 }
 

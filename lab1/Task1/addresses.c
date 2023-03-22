@@ -15,12 +15,12 @@ char g = 'g';
 void foo2();
 
 int main(int argc, char **argv)
-{ 
+{
     int addr2;
     int addr3;
     char *yos = "ree";
     int *addr4 = (int *)(malloc(50));
-    
+
     printf("Print addresses:\n");
     printf("- &addr2: %p\n", &addr2);
     printf("- &addr3: %p\n", &addr3);
@@ -30,7 +30,7 @@ int main(int argc, char **argv)
     printf("- argc %p\n", &argc);
     printf("- argv %p\n", argv);
     printf("- &argv %p\n", &argv);
-    
+
     printf("Print distances:\n");
     point_at(&addr5);
 
@@ -43,39 +43,38 @@ int main(int argc, char **argv)
 
     printf("- &foo1: %p\n", &foo1);
     printf("- &foo1: %p\n", &foo2);
-    
-    printf("Print another distance:\n");
-    printf("- &foo2 - &foo1: %ld\n", (long) (&foo2 - &foo1));
 
-   
+    printf("Print another distance:\n");
+    printf("- &foo2 - &foo1: %ld\n", (long)(&foo2 - &foo1));
+
     printf("Arrays Mem Layout (T1b):\n");
     int iarray[3];
     float farray[3];
     double darray[3];
-    char carray[3]; 
+    char carray[3];
     /* task 1 b here */
     printf("%p\n", &iarray);
-    printf("%p\n", &iarray+1);
+    printf("%p\n", &iarray + 1);
     printf("%p\n", &farray);
-    printf("%p\n", &farray+1);
+    printf("%p\n", &farray + 1);
     printf("%p\n", &darray);
-    printf("%p\n", &darray+1);
+    printf("%p\n", &darray + 1);
     printf("%p\n", &carray);
-    printf("%p\n", &carray+1);
-    
+    printf("%p\n", &carray + 1);
+
     printf("Pointers and arrays (T1d): ");
-    int iarray2[] = {1,2,3};
-    char carray2[] = {'a','b','c'};
-    int* iarray2Ptr;
-    char* carray2Ptr; 
+    int iarray2[] = {1, 2, 3};
+    char carray2[] = {'a', 'b', 'c'};
+    int *iarray2Ptr;
+    char *carray2Ptr;
     /* task 1 d here */
     iarray2Ptr = &iarray2[0];
     carray2Ptr = &carray2[0];
     for (int i = 0; i < 3; i++)
-	    printf("%d ", *(iarray2Ptr+i));
+        printf("%d ", *(iarray2Ptr + i));
     printf(", ");
-    for (int i = 0; i < 3; i++) 
-        printf("%c ", *(carray2Ptr+i));
+    for (int i = 0; i < 3; i++)
+        printf("%c ", *(carray2Ptr + i));
     printf("\n");
     int *p;
     printf("%p\n", p);
@@ -99,7 +98,7 @@ void point_at(void *p)
     printf("- dist1: (size_t)&addr6 - (size_t)p: %ld\n", dist1);
     printf("- dist2: (size_t)&local - (size_t)p: %ld\n", dist2);
     printf("- dist3: (size_t)&foo - (size_t)p:  %ld\n", dist3);
-    
+
     printf("Check long type mem size (T1a):\n");
     /* part of task 1 a here */
     printf("%d\n", sizeof(long));
