@@ -12,9 +12,7 @@ char *map(char *array, int array_length, char (*f)(char))
 
 char my_get(char c)
 {
-  if ((c = fgetc(stdin)) == EOF)
-    exit(0);
-  return c;
+  return fgetc(stdin);
 }
 char cprt(char c)
 {
@@ -52,7 +50,7 @@ int main(int argc, char **argv)
   char *carray, *line;
   int idx;
 
-  carray = malloc(sizeof(char) * 6);
+  carray = malloc(sizeof(char) * 5);
   struct fun_desc menu[] = {{"Get string", &my_get}, {"Print string", &cprt}, {"Print hex", &xprt}, {"Encrypt", &encrypt}, {"Decrypt", &decrypt}, {NULL, NULL}};
 
   printf("Please choose a function:\n");
@@ -75,6 +73,11 @@ int main(int argc, char **argv)
       printf("Within bounds.\n");
 
     carray = map(carray, 5, menu[idx].fun);
+
+    // Additional task from my TA during lab session due to finish early (flush stdin)
+    int c;
+    while ((c = fgetc(stdin)) != '\n' && c != EOF)
+      ; // Took this flushing method from Stack Overflow
 
     printf("DONE.\n");
 
