@@ -75,14 +75,6 @@ int main(int argc, char **argv)
 
     carray = map(carray, 5, menu[idx].fun);
 
-    // Additional task from my TA during lab session due to finish early (flush stdin)
-    if (idx == 0 && strlen(carray) != 5)
-    {
-      int c;
-      while ((c = fgetc(stdin)) != '\n' && c != EOF)
-        ; // Took this flushing method from Stack Overflow
-    }
-
     printf("DONE.\n");
 
     printf("\nPlease choose a function:\n");
