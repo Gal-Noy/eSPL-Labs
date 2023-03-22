@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 char *map(char *array, int array_length, char (*f)(char))
 {
@@ -75,9 +76,12 @@ int main(int argc, char **argv)
     carray = map(carray, 5, menu[idx].fun);
 
     // Additional task from my TA during lab session due to finish early (flush stdin)
-    int c;
-    while ((c = fgetc(stdin)) != '\n' && c != EOF)
-      ; // Took this flushing method from Stack Overflow
+    if (idx == 0 && strlen(carray) != 5)
+    {
+      int c;
+      while ((c = fgetc(stdin)) != '\n' && c != EOF)
+        ; // Took this flushing method from Stack Overflow
+    }
 
     printf("DONE.\n");
 
