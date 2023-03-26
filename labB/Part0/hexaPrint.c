@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 void PrintHex(unsigned char *buffer, int length)
 {

@@ -17,13 +17,13 @@ typedef struct virus
 virus *readVirus(FILE *file)
 {
     virus *v;
+    v = malloc(sizeof(struct virus));
 
-    v = malloc(sizeof(virus));
-
-    fread(&v->SigSize, sizeof(unsigned short), 2, file);
-    fread(v->virusName, sizeof(char), 16, file);
-    v->sig = malloc(v->SigSize * sizeof(unsigned char));
-    fread(v->sig, sizeof(unsigned char), v->SigSize, file);
+    if (fread(v, 1, 18, file) != 0)
+    {
+        v->sig = malloc(v->SigSize);
+        fread(v->sig, 1, v->SigSize, file);
+    }
 
     return v;
 }
