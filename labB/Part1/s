@@ -1,0 +1,77 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+typedef struct virus
+{
+    unsigned short SigSize;
+    char virusName[16];
+    unsigned char *sig;
+} virus;
+
+void PrintHex(unsigned char *buffer, int length)
+{
+    for (int i = 0; i < length; i++)
+        printf("%02X ", buffer[i]);
+}
+
+virus *readVirus(FILE *file)
+{
+    virus *v;
+    v = malloc(sizeof(struct virus));
+
+    if (fread(v, 1, 18, file) != 0)
+    {
+        v->sig = malloc(v->SigSize);
+        fread(v->sig, 1, v->SigSize, file);
+    }
+
+    return v;
+}
+
+void printVirus(virus *virus, FILE *output)
+{
+    fprintf(output, "Virus name: %s\n", virus->virusName);
+    fprintf(output, "Virus size: %d\n", virus->SigSize);
+    fprintf(output, "signature:\n");
+    PrintHex(virus->sig, virus->SigSize);
+    fprintf(output, "\n\n");
+}
+
+int getSize(FILE *file)
+{
+    int length;
+
+    fseek(file, 0, SEEK_END);
+    length = ftell(file);
+    rewind(file);
+
+    return length;
+}
+
+int main(int argc, char **argv)
+{
+    FILE *file;
+    virus *v;
+    int length, bytes;
+    char buffer[4];
+    file = fopen(argv[1], "r");
+    if (!file)
+    {
+        fprintf(stderr, "Error: file coult not open\n");
+        return 0;
+    }
+
+    fread(&buffer, 1, 4, file);
+
+    bytes = 4;
+    length = getSize(file);
+
+    while (bytes < length)
+    {
+        v = readVirus(file);
+        printVirus(v, stdout);
+        bytes += 18 + v->SigSize;
+        free(v);
+    }
+    return 0;
+}
