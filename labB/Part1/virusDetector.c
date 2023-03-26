@@ -51,6 +51,26 @@ void printVirus(virus *virus, FILE *output)
     fprintf(output, "\n\n");
 }
 
+void free_virus(virus *v)
+{
+    if (v)
+    {
+        if (v->sig)
+            free(v->sig);
+        free(v);
+    }
+}
+void list_free(link *virus_list)
+{
+    if (virus_list)
+    {
+        free(virus_list->vir);
+        if (virus_list->nextVirus)
+            list_free(virus_list->nextVirus);
+        free(virus_list);
+    }
+}
+
 void list_print(link *virus_list, FILE *file)
 {
     link *curr = virus_list;
@@ -59,7 +79,7 @@ void list_print(link *virus_list, FILE *file)
         printVirus(curr->vir, file);
         curr = curr->nextVirus;
     }
-    free(curr);
+    list_free(curr);
 }
 
 link *list_append(link *virus_list, virus *data)
@@ -69,17 +89,6 @@ link *list_append(link *virus_list, virus *data)
     data_link->nextVirus = virus_list;
 
     return data_link;
-}
-
-void list_free(link *virus_list)
-{
-    if (virus_list)
-    {
-        if (virus_list->vir)
-            free(virus_list->vir);
-        if (virus_list->nextVirus)
-            free(virus_list->nextVirus);
-    }
 }
 
 int getSize(FILE *file)
@@ -122,7 +131,7 @@ link *load_signatures(link *virus_list, FILE *file)
     }
 
     fclose(file);
-    free(v);
+    free_virus(v);
 
     return output_list;
 }
@@ -175,8 +184,8 @@ int main(int argc, char **argv)
         }
 
         printf("Within bounds.\n");
-        if (idx == 1)
-            virus_list = menu[idx - 1].fun(virus_list, file);
+
+        virus_list = menu[idx - 1].fun(virus_list, file);
         if (!virus_list)
             goto end_program;
 
