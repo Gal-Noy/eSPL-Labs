@@ -62,13 +62,15 @@ void free_virus(virus *v)
 }
 void list_free(link *virus_list)
 {
-    if (virus_list)
+    link *curr = virus_list;
+
+    if (curr)
     {
-        free(virus_list->vir);
-        if (virus_list->nextVirus)
-            list_free(virus_list->nextVirus);
-        free(virus_list);
+        list_free(curr->nextVirus);
+        free_virus(curr->vir);
+        free(curr);
     }
+    return;
 }
 
 void list_print(link *virus_list, FILE *file)
@@ -84,11 +86,17 @@ void list_print(link *virus_list, FILE *file)
 
 link *list_append(link *virus_list, virus *data)
 {
-    link *data_link = malloc(sizeof(link));
-    data_link->vir = data;
-    data_link->nextVirus = virus_list;
-
-    return data_link;
+    if (virus_list)
+    {
+        virus_list->nextVirus = list_append(virus_list->nextVirus, data);
+        return virus_list;
+    }
+    else
+    {
+        link *data_link = malloc(sizeof(link));
+        data_link->vir = data;
+        return data_link;
+    }
 }
 
 int getSize(FILE *file)
@@ -105,6 +113,9 @@ int getSize(FILE *file)
 link *load_signatures(link *virus_list, FILE *file)
 {
     char *fileName = NULL, buf[BUFSIZ], buffer[4];
+    int file_size, bytes;
+    link *curr = NULL;
+    virus *v = NULL;
 
     printf("Enter signature file name: ");
     fgets(buf, sizeof(buf), stdin);
@@ -119,21 +130,20 @@ link *load_signatures(link *virus_list, FILE *file)
         return NULL;
     }
 
+    file_size = getSize(file);
     fread(&buffer, 1, 4, file);
+    bytes = 4;
 
-    virus *v = readVirus(file);
-    link *output_list;
-
-    while (v && v->SigSize)
+    while (bytes < file_size)
     {
-        output_list = list_append(output_list, v);
         v = readVirus(file);
+        curr = list_append(curr, v);
+        bytes += 18 + v->SigSize;
     }
 
     fclose(file);
-    free_virus(v);
 
-    return output_list;
+    return curr;
 }
 
 link *print_signatures(link *virus_list, FILE *file)
