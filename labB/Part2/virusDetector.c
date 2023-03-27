@@ -163,7 +163,29 @@ void print_detected_virus(int signature_offset, char *virus_name, int virus_size
     printf("Signature size: %d\n\n", virus_size);
 }
 
-void detect_virus_wrapper(char *buffer, unsigned int size, link *virus_list, int neutralize)
+void neutralize_virus(int signature_offset, char *file_name)
+{
+    FILE *file;
+    unsigned char ret;
+
+    ret = 0xC3;
+
+    file = fopen(file_name, "r+b");
+    if (!file)
+    {
+        fprintf(stderr, "Error: no viruses loaded");
+        return;
+    }
+
+    fseek(file, signature_offset, SEEK_SET);
+    fwrite(&ret, sizeof(unsigned char), 1, file);
+
+    printf("Neutralized virus at offset %d\n", signature_offset);
+
+    fclose(file);
+}
+
+void detect_virus_wrapper(char *buffer, unsigned int size, link *virus_list, int neutralize, char *file_name)
 {
     link *curr = virus_list;
     virus *v;
@@ -176,7 +198,12 @@ void detect_virus_wrapper(char *buffer, unsigned int size, link *virus_list, int
 
         for (int i = 0; i <= size - virus_size; i++)
             if (memcmp(buffer + i, v->sig, virus_size) == 0)
-                print_detected_virus(i, v->virusName, virus_size);
+            {
+                if (neutralize)
+                    neutralize_virus(i, file_name);
+                else
+                    print_detected_virus(i, v->virusName, virus_size);
+            }
 
         curr = curr->nextVirus;
     }
@@ -211,7 +238,7 @@ link *handle_viruses(link *virus_list, char *file_name, int neutralize)
 
     fread(buffer, 1, file_length, file);
 
-    detect_virus_wrapper(buffer, file_length >= 10240 ? 10240 : file_length, virus_list, neutralize);
+    detect_virus_wrapper(buffer, file_length >= 10240 ? 10240 : file_length, virus_list, neutralize, file_name);
 
     free(buffer);
     fclose(file);
@@ -231,11 +258,11 @@ link *fix_file(link *virus_list, char *file_name)
 
 link *quit(link *virus_list, char *unused)
 {
-    // if (virus_list)
-    // {
-    //     list_free(virus_list);
-    //     virus_list = NULL;
-    // }
+    if (virus_list)
+    {
+        list_free(virus_list);
+        virus_list = NULL;
+    }
     return NULL;
 }
 
