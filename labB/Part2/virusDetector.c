@@ -163,7 +163,7 @@ void print_detected_virus(int signature_offset, char *virus_name, int virus_size
     printf("Signature size: %d\n\n", virus_size);
 }
 
-void detect_virus(char *buffer, unsigned int size, link *virus_list)
+void detect_virus_wrapper(char *buffer, unsigned int size, link *virus_list, int neutralize)
 {
     link *curr = virus_list;
     virus *v;
@@ -181,8 +181,10 @@ void detect_virus(char *buffer, unsigned int size, link *virus_list)
         curr = curr->nextVirus;
     }
 
-    free_virus(v);
     list_free(curr);
+}
+void detect_virus(char *buffer, unsigned int size, link *virus_list)
+{
 }
 
 link *handle_viruses(link *virus_list, char *file_name, int neutralize)
@@ -209,7 +211,7 @@ link *handle_viruses(link *virus_list, char *file_name, int neutralize)
 
     fread(buffer, 1, file_length, file);
 
-    detect_virus(buffer, file_length >= 10240 ? 10240 : file_length, virus_list);
+    detect_virus_wrapper(buffer, file_length >= 10240 ? 10240 : file_length, virus_list, neutralize);
 
     free(buffer);
     fclose(file);

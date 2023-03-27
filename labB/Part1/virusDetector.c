@@ -96,6 +96,7 @@ link *list_append(link *virus_list, virus *data)
     {
         link *data_link = malloc(sizeof(link));
         data_link->vir = data;
+        data_link->nextVirus = NULL;
         return data_link;
     }
 }
