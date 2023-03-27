@@ -29,18 +29,32 @@ void PrintHex(unsigned char *buffer, int length)
         printf("%02X ", buffer[i]);
 }
 
-virus *readVirus(FILE *file)
+void free_virus(virus *v)
+{
+    if (v)
+    {
+        if (v->sig)
+            free(v->sig);
+        free(v);
+    }
+}
+
+virus *readVirusWrapper(FILE *file, int big_endian)
 {
     virus *v;
-    v = malloc(sizeof(struct virus));
+    v = malloc(sizeof(virus));
 
-    if (fread(v, 1, 18, file) != 0)
+    if (fread(v, 1, 18, file) == 18)
     {
+        v->SigSize = !big_endian ? v->SigSize : (v->SigSize >> 8) | (v->SigSize << 8);
+
         v->sig = malloc(v->SigSize);
-        fread(v->sig, 1, v->SigSize, file);
+        if (fread(v->sig, 1, v->SigSize, file) == v->SigSize)
+            return v;
     }
 
-    return v;
+    free_virus(v);
+    return NULL;
 }
 
 void printVirus(virus *virus, FILE *output)
@@ -52,15 +66,6 @@ void printVirus(virus *virus, FILE *output)
     fprintf(output, "\n\n");
 }
 
-void free_virus(virus *v)
-{
-    if (v)
-    {
-        if (v->sig)
-            free(v->sig);
-        free(v);
-    }
-}
 void list_free(link *virus_list)
 {
     link *curr = virus_list;
@@ -116,7 +121,7 @@ link *load_signatures(link *virus_list, char *unused)
 {
     FILE *file = NULL;
     char *fileName = NULL, buf[BUFSIZ], buffer[4];
-    int file_size, bytes;
+    int file_size, bytes, big_endian;
     link *curr = NULL;
     virus *v = NULL;
 
@@ -136,10 +141,10 @@ link *load_signatures(link *virus_list, char *unused)
     file_size = getSize(file);
     fread(&buffer, 1, 4, file);
     bytes = 4;
-
+    big_endian = buffer[3] == 'B';
     while (bytes < file_size)
     {
-        v = readVirus(file);
+        v = readVirusWrapper(file, big_endian);
         curr = list_append(curr, v);
         bytes += 18 + v->SigSize;
     }
