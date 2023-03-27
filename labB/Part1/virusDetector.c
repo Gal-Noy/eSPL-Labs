@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 typedef struct virus
 {
@@ -19,7 +20,7 @@ struct link
 typedef struct fun_desc
 {
     char *name;
-    link *(*fun)(link *virus_list, FILE *file);
+    link *(*fun)(link *virus_list, char *file_name);
 } fun_desc;
 
 void PrintHex(unsigned char *buffer, int length)
@@ -110,8 +111,9 @@ int getSize(FILE *file)
     return length;
 }
 
-link *load_signatures(link *virus_list, FILE *file)
+link *load_signatures(link *virus_list, char *unused)
 {
+    FILE *file = NULL;
     char *fileName = NULL, buf[BUFSIZ], buffer[4];
     int file_size, bytes;
     link *curr = NULL;
@@ -146,33 +148,85 @@ link *load_signatures(link *virus_list, FILE *file)
     return curr;
 }
 
-link *print_signatures(link *virus_list, FILE *file)
+link *print_signatures(link *virus_list, char *unused)
 {
     list_print(virus_list, stdout);
     return virus_list;
 }
 
-link *detect_viruses(link *virus_list, FILE *file)
+void detect_virus(char *buffer, unsigned int size, link *virus_list)
+{
+    link *curr = virus_list;
+    virus *v;
+    int virus_size;
+
+    while (curr)
+    {
+        v = curr->vir;
+        virus_size = v->SigSize;
+
+        for (int i = 0; i <= size - virus_size; i++)
+            if (memcmp(buffer + i, v->sig, virus_size) == 0)
+            {
+                printf("Virus detected:\n");
+                printf("Starting byte: %d\n", i);
+                printf("Virus name: %s\n", v->virusName);
+                printf("Signature size: %d\n", virus_size);
+            }
+        curr = curr->nextVirus;
+    }
+
+    free_virus(v);
+    list_free(curr);
+}
+
+link *detect_viruses(link *virus_list, char *file_name)
+{
+    if (!virus_list)
+    {
+        fprintf(stderr, "Error: no viruses loaded");
+        return virus_list;
+    }
+
+    FILE *file;
+    char *buffer;
+    unsigned int file_length;
+
+    file = fopen(file_name, "r");
+    if (!file)
+    {
+        printf("Error: could not open file");
+        return NULL;
+    }
+
+    buffer = malloc(10240 * sizeof(char));
+    file_length = getSize(file);
+
+    fread(buffer, 1, file_length, file);
+
+    detect_virus(buffer, file_length >= 10240 ? 10240 : file_length, virus_list);
+
+    free(buffer);
+    fclose(file);
+
+    return virus_list;
+}
+
+link *fix_file(link *virus_list, char *unused)
 {
     return virus_list;
 }
 
-link *fix_file(link *virus_list, FILE *file)
-{
-    return virus_list;
-}
-
-link *quit(link *virus_list, FILE *file)
+link *quit(link *virus_list, char *unused)
 {
     return virus_list;
 }
 
 int main(int argc, char **argv)
 {
-    FILE *file = NULL;
     link *virus_list = NULL;
     int idx;
-    char *line;
+    char *line, *file_name;
 
     struct fun_desc menu[] = {{"Load signatures", &load_signatures}, {"Print signatures", &print_signatures}, {"Detect viruses", &detect_viruses}, {"Fix file", &fix_file}, {"Quit", &quit}, {NULL, NULL}};
 
@@ -195,7 +249,10 @@ int main(int argc, char **argv)
 
         printf("Within bounds.\n");
 
-        virus_list = menu[idx - 1].fun(virus_list, file);
+        if (argc > 1)
+            file_name = argv[1];
+
+        virus_list = menu[idx - 1].fun(virus_list, file_name);
         if (!virus_list)
             goto end_program;
 
@@ -212,7 +269,5 @@ end_program:
         list_free(virus_list);
     if (line)
         free(line);
-    if (file)
-        fclose(file);
     return 0;
 }
