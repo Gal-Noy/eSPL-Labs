@@ -159,8 +159,12 @@ link *load_signatures(link *virus_list, char *unused)
 
 link *print_signatures(link *virus_list, char *unused)
 {
-    FILE *file = fopen("viruses-list", "w");
+    FILE *file;
+
+    file = fopen("viruses-list", "w");
     list_print(virus_list, file);
+    fclose(file);
+
     return virus_list;
 }
 
