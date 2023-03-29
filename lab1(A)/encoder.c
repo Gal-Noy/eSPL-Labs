@@ -8,18 +8,15 @@ int invalid_args() {
 
 int main(int argc, char **argv) {
 
-	int debug_on, encoding_mode, diff, enc_c, digit_or_letter, key_idx, c;
+	int debug_on, encoding_mode, key_idx, c;
 	debug_on = encoding_mode = key_idx = 0;
-
-	char *key, *arg;
-	key = NULL;
-
+	char *key = NULL;
 	FILE *input = stdin;
 	FILE *output = stdout;
 
 	for (int i = 1; i < argc; i++) {
 
-		arg = argv[i];
+		char *arg = argv[i];
 
 		if (debug_on && arg[1] != 'D') // Handle debugging.
 			fprintf(stderr, "%s\n", arg);
@@ -57,9 +54,9 @@ int main(int argc, char **argv) {
 			fputc(c, output);
 
 		else {
-			diff = (key[key_idx] - '0') * encoding_mode;
-			enc_c = c + diff; // Calculate encoded char.
-			digit_or_letter = 1;
+			int diff = (key[key_idx] - '0') * encoding_mode;
+			int enc_c = c + diff; // Calculate encoded char.
+			int digit_or_letter = 1;
 
 			// Wrap if needed.
 			if (c >= 'A' && c <= 'Z') // Uppercase.

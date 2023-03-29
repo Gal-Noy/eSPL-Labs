@@ -23,10 +23,11 @@ typedef struct fun_desc
     link *(*fun)(link *virus_list, char *file_name);
 } fun_desc;
 
-void PrintHex(unsigned char *buffer, int length)
+void PrintHex(unsigned char *buffer, int length, FILE *output)
 {
-    for (int i = 0; i < length; i++)
-        printf("%02X ", buffer[i]);
+    for (int i = 0; i < length - 1; i++)
+        fprintf(output, "%02X ", buffer[i]);
+    fprintf(output, "%02X", buffer[length - 1]);
 }
 
 void free_virus(virus *v)
@@ -62,8 +63,8 @@ void printVirus(virus *virus, FILE *output)
     fprintf(output, "Virus name: %s\n", virus->virusName);
     fprintf(output, "Virus size: %d\n", virus->SigSize);
     fprintf(output, "signature:\n");
-    PrintHex(virus->sig, virus->SigSize);
-    fprintf(output, "\n\n");
+    PrintHex(virus->sig, virus->SigSize, output);
+    fprintf(output, "\n");
 }
 
 void list_free(link *virus_list)
@@ -85,6 +86,8 @@ void list_print(link *virus_list, FILE *file)
     while (curr)
     {
         printVirus(curr->vir, file);
+        if (curr->nextVirus)
+            fprintf(file, "\n");
         curr = curr->nextVirus;
     }
     list_free(curr);
@@ -156,7 +159,8 @@ link *load_signatures(link *virus_list, char *unused)
 
 link *print_signatures(link *virus_list, char *unused)
 {
-    list_print(virus_list, stdout);
+    FILE *file = fopen("viruses-list", "w");
+    list_print(virus_list, file);
     return virus_list;
 }
 
