@@ -7,8 +7,6 @@
 #include <linux/limits.h>
 #include "LineParser.h"
 
-void handler(int);
-
 void execute(cmdLine *pCmdLine)
 {
     if (strcmp(pCmdLine->arguments[0], "quit") == 0)

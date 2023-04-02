@@ -2,6 +2,8 @@
   "files.associations": {
     "unistd.h": "c",
     "limits.h": "c",
-    "lineparser.h": "c"
+    "lineparser.h": "c",
+    "string.h": "c",
+    "types.h": "c"
   }
 }
