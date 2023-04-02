@@ -1,0 +1,7 @@
+{
+  "files.associations": {
+    "unistd.h": "c",
+    "limits.h": "c",
+    "lineparser.h": "c"
+  }
+}
