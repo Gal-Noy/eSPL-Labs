@@ -23,7 +23,7 @@ void exit_program(cmdLine *pCmdLine, int code, char *error)
 
 void execute(cmdLine *pCmdLine, int debug)
 {
-    int child_pid, signal, input = -1, output = -1;
+    int child_pid, input = -1, output = -1;
     char *arg = pCmdLine->arguments[0];
 
     if (strcmp(arg, "quit") == 0)
@@ -37,20 +37,18 @@ void execute(cmdLine *pCmdLine, int debug)
     else if (strcmp(arg, "wake") == 0)
     {
         child_pid = atoi(pCmdLine->arguments[1]);
-        signal = SIGCONT;
-        if (kill(child_pid, signal) < 0)
+        if (kill(child_pid, SIGCONT) < 0)
             exit_program(pCmdLine, 0, "kill() error");
         printf("Process %d has been woken up\n", child_pid);
-        exit_program(pCmdLine, 1, NULL);
+        return;
     }
     else if (strcmp(arg, "kill") == 0)
     {
         child_pid = atoi(pCmdLine->arguments[1]);
-        signal = SIGCONT;
-        if (kill(child_pid, signal) < 0)
+        if (kill(child_pid, SIGTERM) < 0)
             exit_program(pCmdLine, 0, "kill() error");
         printf("Process %d has been terminated\n", child_pid);
-        exit_program(pCmdLine, 1, NULL);
+        return;
     }
 
     child_pid = fork();
