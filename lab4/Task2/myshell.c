@@ -22,7 +22,7 @@ void exit_program(cmdLine *pCmdLine, int code, char *error)
 
 void execute(cmdLine *pCmdLine, int debug)
 {
-    int child_pid;
+    int child_pid, input = -1, output = -1;
 
     if (strcmp(pCmdLine->arguments[0], "quit") == 0)
         exit_program(pCmdLine, 1, NULL);
@@ -38,8 +38,30 @@ void execute(cmdLine *pCmdLine, int debug)
     if (child_pid == -1)
         exit_program(pCmdLine, 0, "fork() error");
     else if (child_pid == 0)
+    {
+        if (pCmdLine->inputRedirect)
+        {
+            input = open(pCmdLine->inputRedirect, O_RDONLY);
+            if (input == -1)
+                exit_program(pCmdLine, 0, "open() inputRedirect error");
+            if (dup2(input, STDIN_FILENO) == -1)
+                exit_program(pCmdLine, 0, "dup2() inputRedirect error");
+            close(input);
+        }
+
+        if (pCmdLine->outputRedirect)
+        {
+            output = open(pCmdLine->outputRedirect, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            if (output == -1)
+                exit_program(pCmdLine, 0, "open() outputRedirect error");
+            if (dup2(output, STDOUT_FILENO) == -1)
+                exit_program(pCmdLine, 0, "dup2() outputRedirect error");
+            close(output);
+        }
+
         if (execvp(pCmdLine->arguments[0], pCmdLine->arguments) == -1)
             exit_program(pCmdLine, 0, "execvp() error");
+    }
 
     if (debug)
         fprintf(stderr, "PID: %d\nExecuting command: %s\n", child_pid, pCmdLine->arguments[0]);
