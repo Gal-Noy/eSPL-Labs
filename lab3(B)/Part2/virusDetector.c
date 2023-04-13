@@ -163,6 +163,7 @@ link *print_signatures(link *virus_list, char *unused)
 
     file = fopen("viruses-list", "w");
     list_print(virus_list, file);
+    fprint("Signatures were printed to viruses-list file.");
     fclose(file);
 
     return virus_list;
