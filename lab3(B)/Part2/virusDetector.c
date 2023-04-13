@@ -163,7 +163,7 @@ link *print_signatures(link *virus_list, char *unused)
 
     file = fopen("viruses-list", "w");
     list_print(virus_list, file);
-    printf("Signatures were printed to viruses-list file.");
+    printf("Signatures were printed to \"viruses-list\" file.\n");
     fclose(file);
 
     return virus_list;
