@@ -34,7 +34,15 @@ void execute(cmdLine *pCmdLine)
     {
         if (chdir(pCmdLine->arguments[1]) < 0)
             exit_program(pCmdLine, 0, "chdir() error");
-        exit_program(pCmdLine, 1, NULL);
+        return;
+    }
+    else if (strcmp(arg, "suspend") == 0)
+    {
+        child_pid = atoi(pCmdLine->arguments[1]);
+        if (kill(child_pid, SIGTSTP) < 0)
+            exit_program(pCmdLine, 0, "kill() error");
+        printf("Process %d has been suspended\n", child_pid);
+        return;
     }
     else if (strcmp(arg, "wake") == 0)
     {
@@ -47,7 +55,7 @@ void execute(cmdLine *pCmdLine)
     else if (strcmp(arg, "kill") == 0)
     {
         child_pid = atoi(pCmdLine->arguments[1]);
-        if (kill(child_pid, SIGTERM) < 0)
+        if (kill(child_pid, SIGINT) < 0)
             exit_program(pCmdLine, 0, "kill() error");
         printf("Process %d has been terminated\n", child_pid);
         return;
@@ -79,8 +87,12 @@ void execute(cmdLine *pCmdLine)
             close(output);
         }
 
-        if (execvp(arg, pCmdLine->arguments) == -1)
-            exit_program(pCmdLine, 0, "execvp() error");
+        if (execvp(pCmdLine->arguments[0], pCmdLine->arguments) == -1)
+        {
+            freeCmdLines(pCmdLine);
+            perror("execvp() error");
+            _exit(0);
+        }
     }
 
     if (debug)
@@ -95,14 +107,13 @@ int main(int argc, char **argv)
     char curr_dir[PATH_MAX], line[2048];
     cmdLine *pCmdLine;
 
-    getcwd(curr_dir, PATH_MAX);
-
     for (int i = 0; i < argc; i++)
         if (strcmp(argv[i], "-d") == 0)
             debug = 1;
 
     while (1)
     {
+        getcwd(curr_dir, PATH_MAX);
         printf("%s : ", curr_dir);
 
         fgets(line, 2048, stdin);

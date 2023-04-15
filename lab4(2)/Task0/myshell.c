@@ -27,10 +27,9 @@ int main(int argc, char **argv)
     char curr_dir[PATH_MAX], line[2048];
     cmdLine *pCmdLine;
 
-    getcwd(curr_dir, PATH_MAX);
-
     while (1)
     {
+        getcwd(curr_dir, PATH_MAX);
         printf("%s : ", curr_dir);
 
         fgets(line, 2048, stdin);
