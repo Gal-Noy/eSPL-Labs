@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/types.h>
@@ -10,16 +9,15 @@
 #include <linux/limits.h>
 #include "LineParser.h"
 
+#define LINE_SIZE 2048
+
 int debug = 0;
 
 void exit_program(cmdLine *pCmdLine, int code, char *error, int use_exit)
 {
-    freeCmdLines(pCmdLine);
     if (error)
-    {
         perror(error);
-        free(error);
-    }
+    freeCmdLines(pCmdLine);
     if (use_exit)
         exit(code);
     else
@@ -81,15 +79,17 @@ void execute(cmdLine *pCmdLine)
 
     child_pid = fork();
 
-    if (child_pid == -1)
-        exit_program(pCmdLine, 0, "fork() error", 0);
-    else if (child_pid == 0)
+    switch (child_pid)
     {
+    case -1:
+        exit_program(pCmdLine, 0, "fork() error", 0);
+        break;
+    case 0:
         io_process(pCmdLine, pCmdLine->inputRedirect, O_RDONLY, STDIN_FILENO, "open() inputRedirect error");
         io_process(pCmdLine, pCmdLine->outputRedirect, O_WRONLY | O_CREAT | O_TRUNC, STDOUT_FILENO, "open() outputRedirect error");
-
         if (execvp(pCmdLine->arguments[0], pCmdLine->arguments) == -1)
             exit_program(pCmdLine, 0, "execvp() error", 1);
+        break;
     }
 
     if (debug)
@@ -101,7 +101,7 @@ void execute(cmdLine *pCmdLine)
 
 int main(int argc, char **argv)
 {
-    char curr_dir[PATH_MAX], line[2048];
+    char curr_dir[PATH_MAX], line[LINE_SIZE];
     cmdLine *pCmdLine;
 
     for (int i = 0; i < argc; i++)
@@ -113,8 +113,10 @@ int main(int argc, char **argv)
         getcwd(curr_dir, PATH_MAX);
         printf("%s : ", curr_dir);
 
-        fgets(line, 2048, stdin);
+        fgets(line, LINE_SIZE, stdin);
         pCmdLine = parseCmdLines(line);
+        if (!pCmdLine)
+            continue;
 
         execute(pCmdLine);
 

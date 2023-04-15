@@ -4,6 +4,7 @@
     "limits.h": "c",
     "lineparser.h": "c",
     "string.h": "c",
-    "types.h": "c"
+    "types.h": "c",
+    "wait.h": "c"
   }
 }

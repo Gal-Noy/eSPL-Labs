@@ -13,5 +13,7 @@ mypipe: mypipe.o
 mypipe.o: mypipe.c
 	gcc -g -m32 -Wall -c mypipe.c
 
+.PHONY: clean
+
 clean:
 	rm -f *.o myshell mypipe
