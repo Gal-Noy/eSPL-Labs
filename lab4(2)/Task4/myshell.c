@@ -12,7 +12,7 @@
 
 int debug = 0;
 
-void exit_program(cmdLine *pCmdLine, int code, char *error)
+void exit_program(cmdLine *pCmdLine, int code, char *error, int use_exit)
 {
     freeCmdLines(pCmdLine);
     if (error)
@@ -20,79 +20,76 @@ void exit_program(cmdLine *pCmdLine, int code, char *error)
         perror(error);
         free(error);
     }
-    exit(code);
+    if (use_exit)
+        exit(code);
+    else
+        _exit(code);
+}
+void change_directory(cmdLine *pCmdLine)
+{
+    if (chdir(pCmdLine->arguments[1]) < 0)
+        exit_program(pCmdLine, 0, "chdir() error", 0);
+}
+void signal_process(cmdLine *pCmdLine, int signal)
+{
+    int child_pid = atoi(pCmdLine->arguments[1]);
+    if (kill(child_pid, signal) < 0)
+        exit_program(pCmdLine, 0, "kill() error", 0);
+    printf("Process %d has been %s.\n", child_pid, signal == SIGTSTP ? "suspended" : signal == SIGCONT ? "woken up"
+                                                                                                       : "terminated");
+}
+void io_process(cmdLine *pCmdLine, const char *fd, int flags, int stdfd, char *error)
+{
+    if (fd)
+    {
+        int res = open(fd, flags, 0644);
+        if (res == -1)
+            exit_program(pCmdLine, 0, error, 0);
+        if (dup2(res, stdfd) == -1)
+            exit_program(pCmdLine, 0, error, 0);
+        close(res);
+    }
 }
 
 void execute(cmdLine *pCmdLine)
 {
-    int child_pid, input = -1, output = -1;
+    int child_pid;
     char *arg = pCmdLine->arguments[0];
 
     if (strcmp(arg, "quit") == 0)
-        exit_program(pCmdLine, 1, NULL);
+        exit_program(pCmdLine, 1, NULL, 0);
     else if (strcmp(arg, "cd") == 0)
     {
-        if (chdir(pCmdLine->arguments[1]) < 0)
-            exit_program(pCmdLine, 0, "chdir() error");
+        change_directory(pCmdLine);
         return;
     }
     else if (strcmp(arg, "suspend") == 0)
     {
-        child_pid = atoi(pCmdLine->arguments[1]);
-        if (kill(child_pid, SIGTSTP) < 0)
-            exit_program(pCmdLine, 0, "kill() error");
-        printf("Process %d has been suspended\n", child_pid);
+        signal_process(pCmdLine, SIGTSTP);
         return;
     }
     else if (strcmp(arg, "wake") == 0)
     {
-        child_pid = atoi(pCmdLine->arguments[1]);
-        if (kill(child_pid, SIGCONT) < 0)
-            exit_program(pCmdLine, 0, "kill() error");
-        printf("Process %d has been woken up\n", child_pid);
+        signal_process(pCmdLine, SIGCONT);
         return;
     }
     else if (strcmp(arg, "kill") == 0)
     {
-        child_pid = atoi(pCmdLine->arguments[1]);
-        if (kill(child_pid, SIGINT) < 0)
-            exit_program(pCmdLine, 0, "kill() error");
-        printf("Process %d has been terminated\n", child_pid);
+        signal_process(pCmdLine, SIGINT);
         return;
     }
 
     child_pid = fork();
 
     if (child_pid == -1)
-        exit_program(pCmdLine, 0, "fork() error");
+        exit_program(pCmdLine, 0, "fork() error", 0);
     else if (child_pid == 0)
     {
-        if (pCmdLine->inputRedirect)
-        {
-            input = open(pCmdLine->inputRedirect, O_RDONLY);
-            if (input == -1)
-                exit_program(pCmdLine, 0, "open() inputRedirect error");
-            if (dup2(input, STDIN_FILENO) == -1)
-                exit_program(pCmdLine, 0, "dup2() inputRedirect error");
-            close(input);
-        }
-
-        if (pCmdLine->outputRedirect)
-        {
-            output = open(pCmdLine->outputRedirect, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-            if (output == -1)
-                exit_program(pCmdLine, 0, "open() outputRedirect error");
-            if (dup2(output, STDOUT_FILENO) == -1)
-                exit_program(pCmdLine, 0, "dup2() outputRedirect error");
-            close(output);
-        }
+        io_process(pCmdLine, pCmdLine->inputRedirect, O_RDONLY, STDIN_FILENO, "open() inputRedirect error");
+        io_process(pCmdLine, pCmdLine->outputRedirect, O_WRONLY | O_CREAT | O_TRUNC, STDOUT_FILENO, "open() outputRedirect error");
 
         if (execvp(pCmdLine->arguments[0], pCmdLine->arguments) == -1)
-        {
-            freeCmdLines(pCmdLine);
-            perror("execvp() error");
-            _exit(0);
-        }
+            exit_program(pCmdLine, 0, "execvp() error", 1);
     }
 
     if (debug)
