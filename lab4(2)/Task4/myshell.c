@@ -13,6 +13,12 @@
 
 int debug = 0;
 
+void print_directory()
+{
+    char curr_dir[PATH_MAX];
+    getcwd(curr_dir, PATH_MAX);
+    printf("%s : ", curr_dir);
+}
 void exit_program(cmdLine *pCmdLine, int code, char *error, int use_exit)
 {
     if (error)
@@ -101,7 +107,7 @@ void execute(cmdLine *pCmdLine)
 
 int main(int argc, char **argv)
 {
-    char curr_dir[PATH_MAX], line[LINE_SIZE];
+    char line[LINE_SIZE];
     cmdLine *pCmdLine;
 
     for (int i = 0; i < argc; i++)
@@ -110,8 +116,7 @@ int main(int argc, char **argv)
 
     while (1)
     {
-        getcwd(curr_dir, PATH_MAX);
-        printf("%s : ", curr_dir);
+        print_directory();
 
         fgets(line, LINE_SIZE, stdin);
         pCmdLine = parseCmdLines(line);

@@ -13,6 +13,12 @@
 
 int debug = 0;
 
+void print_directory()
+{
+    char curr_dir[PATH_MAX];
+    getcwd(curr_dir, PATH_MAX);
+    printf("%s : ", curr_dir);
+}
 void exit_program(cmdLine *pCmdLine, int code, char *error, int use_exit)
 {
     if (error)
@@ -49,9 +55,8 @@ void io_process(cmdLine *pCmdLine, const char *fd, int flags, int stdfd, char *e
     }
 }
 
-void execute(cmdLine *pCmdLine)
+void handle_special_commands(cmdLine *pCmdLine)
 {
-    int child_pid;
     char *arg = pCmdLine->arguments[0];
 
     if (strcmp(arg, "quit") == 0)
@@ -76,32 +81,89 @@ void execute(cmdLine *pCmdLine)
         signal_process(pCmdLine, SIGINT);
         return;
     }
+}
 
-    child_pid = fork();
+void handle_pipe(cmdLine *pCmdLine)
+{
+    int pid1, pid2, pipefd[2];
+    if (pipe(pipefd) < 0)
+        exit_program(pCmdLine, 0, "pipe error", 0);
 
-    switch (child_pid)
+    pid1 = fork();
+    switch (pid1)
     {
     case -1:
-        exit_program(pCmdLine, 0, "fork() error", 0);
+        exit_program(pCmdLine, 0, "child1 fork error", 0);
         break;
     case 0:
-        io_process(pCmdLine, pCmdLine->inputRedirect, O_RDONLY, STDIN_FILENO, "open() inputRedirect error");
-        io_process(pCmdLine, pCmdLine->outputRedirect, O_WRONLY | O_CREAT | O_TRUNC, STDOUT_FILENO, "open() outputRedirect error");
+        close(STDOUT_FILENO);
+        dup(pipefd[1]);
+        close(pipefd[0]);
+        close(pipefd[1]);
         if (execvp(pCmdLine->arguments[0], pCmdLine->arguments) == -1)
             exit_program(pCmdLine, 0, "execvp() error", 1);
         break;
+    default:
+        close(pipefd[1]);
     }
 
-    if (debug)
-        fprintf(stderr, "PID: %d\nExecuting command: %s\n", child_pid, arg);
+    pid2 = fork();
+    switch (pid2)
+    {
+    case -1:
+        exit_program(pCmdLine, 0, "child2 fork error", 0);
+        break;
+    case 0:
+        close(STDIN_FILENO);
+        dup(pipefd[0]);
+        close(pipefd[0]);
+        close(pipefd[1]);
+        if (execvp(pCmdLine->arguments[0], pCmdLine->arguments) == -1)
+            exit_program(pCmdLine, 0, "execvp() error", 1);
+        break;
+    default:
+        close(pipefd[0]);
+    }
 
-    if (pCmdLine->blocking)
-        waitpid(child_pid, NULL, 0);
+    waitpid(pid1, NULL, 0);
+    waitpid(pid2, NULL, 0);
+}
+
+void execute(cmdLine *pCmdLine)
+{
+    int child_pid;
+
+    handle_special_commands(pCmdLine);
+
+    if (pCmdLine->next)
+        handle_pipe(pCmdLine);
+    else
+    {
+        child_pid = fork();
+        switch (child_pid)
+        {
+        case -1:
+            exit_program(pCmdLine, 0, "fork() error", 0);
+            break;
+        case 0:
+            io_process(pCmdLine, pCmdLine->inputRedirect, O_RDONLY, STDIN_FILENO, "open() inputRedirect error");
+            io_process(pCmdLine, pCmdLine->outputRedirect, O_WRONLY | O_CREAT | O_TRUNC, STDOUT_FILENO, "open() outputRedirect error");
+            if (execvp(pCmdLine->arguments[0], pCmdLine->arguments) == -1)
+                exit_program(pCmdLine, 0, "execvp() error", 1);
+            break;
+        }
+
+        if (debug)
+            fprintf(stderr, "PID: %d\nExecuting command: %s\n", child_pid, pCmdLine->arguments[0]);
+
+        if (pCmdLine->blocking)
+            waitpid(child_pid, NULL, 0);
+    }
 }
 
 int main(int argc, char **argv)
 {
-    char curr_dir[PATH_MAX], line[LINE_SIZE];
+    char line[LINE_SIZE];
     cmdLine *pCmdLine;
 
     for (int i = 0; i < argc; i++)
@@ -110,8 +172,7 @@ int main(int argc, char **argv)
 
     while (1)
     {
-        getcwd(curr_dir, PATH_MAX);
-        printf("%s : ", curr_dir);
+        print_directory();
 
         fgets(line, LINE_SIZE, stdin);
         pCmdLine = parseCmdLines(line);
