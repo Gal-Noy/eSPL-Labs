@@ -10,6 +10,8 @@
 #include <linux/limits.h>
 #include "LineParser.h"
 
+int debug = 0;
+
 void exit_program(cmdLine *pCmdLine, int code, char *error)
 {
     freeCmdLines(pCmdLine);
@@ -21,7 +23,7 @@ void exit_program(cmdLine *pCmdLine, int code, char *error)
     exit(code);
 }
 
-void execute(cmdLine *pCmdLine, int debug)
+void execute(cmdLine *pCmdLine)
 {
     int child_pid, input = -1, output = -1;
     char *arg = pCmdLine->arguments[0];
@@ -92,7 +94,8 @@ int main(int argc, char **argv)
 {
     char curr_dir[PATH_MAX], line[2048];
     cmdLine *pCmdLine;
-    int debug = 0;
+
+    getcwd(curr_dir, PATH_MAX);
 
     for (int i = 0; i < argc; i++)
         if (strcmp(argv[i], "-d") == 0)
@@ -100,13 +103,12 @@ int main(int argc, char **argv)
 
     while (1)
     {
-        getcwd(curr_dir, PATH_MAX);
         printf("%s : ", curr_dir);
 
         fgets(line, 2048, stdin);
         pCmdLine = parseCmdLines(line);
 
-        execute(pCmdLine, debug);
+        execute(pCmdLine);
 
         freeCmdLines(pCmdLine);
     }

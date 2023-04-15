@@ -95,13 +95,14 @@ int main(int argc, char **argv)
     char curr_dir[PATH_MAX], line[2048];
     cmdLine *pCmdLine;
 
+    getcwd(curr_dir, PATH_MAX);
+
     for (int i = 0; i < argc; i++)
         if (strcmp(argv[i], "-d") == 0)
             debug = 1;
 
     while (1)
     {
-        getcwd(curr_dir, PATH_MAX);
         printf("%s : ", curr_dir);
 
         fgets(line, 2048, stdin);
