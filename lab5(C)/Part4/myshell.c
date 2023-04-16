@@ -184,7 +184,6 @@ void printProcessList(process **process_list)
         curr = curr->next;
     }
 }
-
 void print_directory()
 {
     char curr_dir[PATH_MAX];
@@ -353,7 +352,7 @@ cmdLine *history_retrieve(int n)
     else
     {
         if (n >= 1 && n <= entries)
-            return parseCmdLines(history[(newest - n + HISTLEN) % HISTLEN]);
+            return parseCmdLines(history[(oldest + n - 1) % HISTLEN]);
         else
         {
             fprintf(stderr, "Invalid history index\n");
@@ -371,7 +370,7 @@ void execute(cmdLine *pCmdLine)
         return;
     if (arg[0] == '!')
     {
-        int n = arg[1] == '!' ? 1 : atoi(arg + 1);
+        int n = arg[1] == '!' ? newest : atoi(arg + 1);
         freeCmdLines(pCmdLine);
         pCmdLine = history_retrieve(n);
     }
