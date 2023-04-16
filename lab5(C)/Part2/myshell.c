@@ -47,15 +47,42 @@ void io_process(cmdLine *pCmdLine, const char *fd, int flags, int stdfd, char *e
     if (fd)
     {
         int res = open(fd, flags, 0644);
-        if (res == -1)
+        if (res < 0)
             exit_program(pCmdLine, 0, error, 0);
-        if (dup2(res, stdfd) == -1)
+        if (dup2(res, stdfd) < 0)
             exit_program(pCmdLine, 0, error, 0);
         close(res);
     }
 }
+int special_commands_process(cmdLine *pCmdLine)
+{
+    char *arg = pCmdLine->arguments[0];
 
-void handle_pipe(cmdLine *pCmdLine)
+    if (strcmp(arg, "quit") == 0)
+        exit_program(pCmdLine, 1, NULL, 0);
+    else if (strcmp(arg, "cd") == 0)
+    {
+        change_directory(pCmdLine);
+        return 1;
+    }
+    else if (strcmp(arg, "suspend") == 0)
+    {
+        signal_process(pCmdLine, SIGTSTP);
+        return 1;
+    }
+    else if (strcmp(arg, "wake") == 0)
+    {
+        signal_process(pCmdLine, SIGCONT);
+        return 1;
+    }
+    else if (strcmp(arg, "kill") == 0)
+    {
+        signal_process(pCmdLine, SIGINT);
+        return 1;
+    }
+    return 0;
+}
+void pipe_process(cmdLine *pCmdLine)
 {
     int pid1, pid2, pipefd[2];
     if (pipe(pipefd) < 0)
@@ -70,69 +97,26 @@ void handle_pipe(cmdLine *pCmdLine)
     case 0:
         close(STDOUT_FILENO);
         dup(pipefd[1]);
-        close(pipefd[0]);
         close(pipefd[1]);
         execvp(pCmdLine->arguments[0], pCmdLine->arguments);
         exit_program(pCmdLine, 0, "execvp() error", 1);
         break;
     default:
         close(pipefd[1]);
-    }
-
-    pid2 = fork();
-    switch (pid2)
-    {
-    case -1:
-        exit_program(pCmdLine, 0, "child2 fork error", 0);
-        break;
-    case 0:
-        close(STDIN_FILENO);
-        dup(pipefd[0]);
-        close(pipefd[0]);
-        close(pipefd[1]);
-        if (execvp(pCmdLine->arguments[0], pCmdLine->arguments) == -1)
-            exit_program(pCmdLine, 0, "execvp() error", 1);
-        break;
-    default:
-        close(pipefd[0]);
-    }
-
-    waitpid(pid1, NULL, 0);
-    waitpid(pid2, NULL, 0);
-}
-void process_pipe(cmdLine *pCmdLine)
-{
-    pid_t pid1, pid2;
-    int pipefd[2];
-    if (pipe(pipefd) < 0)
-        exit_program(pCmdLine, 0, "pipe error", 0);
-    pid1 = fork();
-    if (pid1 < 0)
-        exit_program(pCmdLine, 0, "pipe error", 0);
-    if (!pid1)
-    {
-        close(STDOUT_FILENO);
-        dup(pipefd[1]);
-        close(pipefd[1]);
-        if (execvp(pCmdLine->arguments[0], pCmdLine->arguments) < 0)
-            exit_program(pCmdLine, 0, "pipe error", 1);
-    }
-    else
-    {
-        close(pipefd[1]);
         pid2 = fork();
-        if (pid2 < 0)
-            exit_program(pCmdLine, 0, "pipe error", 0);
-        if (!pid2)
+        switch (pid2)
         {
+        case -1:
+            exit_program(pCmdLine, 0, "child2 fork error", 0);
+            break;
+        case 0:
             close(STDIN_FILENO);
             dup(pipefd[0]);
             close(pipefd[0]);
-            if (execvp(pCmdLine->next->arguments[0], pCmdLine->next->arguments) < 0)
-                exit_program(pCmdLine, 0, "pipe error", 1);
-        }
-        else
-        {
+            if (execvp(pCmdLine->arguments[0], pCmdLine->next->arguments) < 0)
+                exit_program(pCmdLine, 0, "execvp() error", 1);
+            break;
+        default:
             close(pipefd[0]);
             waitpid(pid1, NULL, 0);
             waitpid(pid2, NULL, 0);
@@ -143,34 +127,12 @@ void process_pipe(cmdLine *pCmdLine)
 void execute(cmdLine *pCmdLine)
 {
     int child_pid;
-
     char *arg = pCmdLine->arguments[0];
 
-    if (strcmp(arg, "quit") == 0)
-        exit_program(pCmdLine, 1, NULL, 0);
-    else if (strcmp(arg, "cd") == 0)
-    {
-        change_directory(pCmdLine);
+    if (special_commands_process(pCmdLine))
         return;
-    }
-    else if (strcmp(arg, "suspend") == 0)
-    {
-        signal_process(pCmdLine, SIGTSTP);
-        return;
-    }
-    else if (strcmp(arg, "wake") == 0)
-    {
-        signal_process(pCmdLine, SIGCONT);
-        return;
-    }
-    else if (strcmp(arg, "kill") == 0)
-    {
-        signal_process(pCmdLine, SIGINT);
-        return;
-    }
-
-    if (pCmdLine->next != NULL)
-        process_pipe(pCmdLine);
+    if (pCmdLine->next)
+        pipe_process(pCmdLine);
     else
     {
         child_pid = fork();
