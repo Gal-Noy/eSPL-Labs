@@ -55,25 +55,25 @@ void io_process(cmdLine *pCmdLine, const char *fd, int flags, int stdfd, char *e
     }
 }
 
-void handle_pipe(cmdLine *first, cmdLine *second)
+void handle_pipe(cmdLine *pCmdLine)
 {
     int pid1, pid2, pipefd[2];
     if (pipe(pipefd) < 0)
-        exit_program(first, 0, "pipe error", 0);
+        exit_program(pCmdLine, 0, "pipe error", 0);
 
     pid1 = fork();
     switch (pid1)
     {
     case -1:
-        exit_program(first, 0, "child1 fork error", 0);
+        exit_program(pCmdLine, 0, "child1 fork error", 0);
         break;
     case 0:
         close(STDOUT_FILENO);
         dup(pipefd[1]);
         close(pipefd[0]);
         close(pipefd[1]);
-        if (execvp(first->arguments[0], first->arguments) == -1)
-            exit_program(first, 0, "execvp() error", 1);
+        execvp(pCmdLine->arguments[0], pCmdLine->arguments);
+        exit_program(pCmdLine, 0, "execvp() error", 1);
         break;
     default:
         close(pipefd[1]);
@@ -83,15 +83,15 @@ void handle_pipe(cmdLine *first, cmdLine *second)
     switch (pid2)
     {
     case -1:
-        exit_program(second, 0, "child2 fork error", 0);
+        exit_program(pCmdLine, 0, "child2 fork error", 0);
         break;
     case 0:
         close(STDIN_FILENO);
         dup(pipefd[0]);
         close(pipefd[0]);
         close(pipefd[1]);
-        if (execvp(second->arguments[0], second->arguments) == -1)
-            exit_program(second, 0, "execvp() error", 1);
+        if (execvp(pCmdLine->arguments[0], pCmdLine->arguments) == -1)
+            exit_program(pCmdLine, 0, "execvp() error", 1);
         break;
     default:
         close(pipefd[0]);
@@ -99,6 +99,45 @@ void handle_pipe(cmdLine *first, cmdLine *second)
 
     waitpid(pid1, NULL, 0);
     waitpid(pid2, NULL, 0);
+}
+void process_pipe(cmdLine *pCmdLine)
+{
+    pid_t pid1, pid2;
+    int pipefd[2];
+    if (pipe(pipefd) < 0)
+        exit_program(pCmdLine, 0, "pipe error", 0);
+    pid1 = fork();
+    if (pid1 < 0)
+        exit_program(pCmdLine, 0, "pipe error", 0);
+    if (!pid1)
+    {
+        close(STDOUT_FILENO);
+        dup(pipefd[1]);
+        close(pipefd[1]);
+        if (execvp(pCmdLine->arguments[0], pCmdLine->arguments) < 0)
+            exit_program(pCmdLine, 0, "pipe error", 1);
+    }
+    else
+    {
+        close(pipefd[1]);
+        pid2 = fork();
+        if (pid2 < 0)
+            exit_program(pCmdLine, 0, "pipe error", 0);
+        if (!pid2)
+        {
+            close(STDIN_FILENO);
+            dup(pipefd[0]);
+            close(pipefd[0]);
+            if (execvp(pCmdLine->next->arguments[0], pCmdLine->next->arguments) < 0)
+                exit_program(pCmdLine, 0, "pipe error", 1);
+        }
+        else
+        {
+            close(pipefd[0]);
+            waitpid(pid1, NULL, 0);
+            waitpid(pid2, NULL, 0);
+        }
+    }
 }
 
 void execute(cmdLine *pCmdLine)
@@ -131,7 +170,7 @@ void execute(cmdLine *pCmdLine)
     }
 
     if (pCmdLine->next != NULL)
-        handle_pipe(pCmdLine, pCmdLine->next);
+        process_pipe(pCmdLine);
     else
     {
         child_pid = fork();
@@ -143,7 +182,7 @@ void execute(cmdLine *pCmdLine)
         case 0:
             io_process(pCmdLine, pCmdLine->inputRedirect, O_RDONLY, STDIN_FILENO, "open() inputRedirect error");
             io_process(pCmdLine, pCmdLine->outputRedirect, O_WRONLY | O_CREAT | O_TRUNC, STDOUT_FILENO, "open() outputRedirect error");
-            if (execvp(arg, pCmdLine->arguments) == -1)
+            if (execvp(arg, pCmdLine->arguments) < 0)
                 exit_program(pCmdLine, 0, "execvp() error", 1);
             break;
         }
