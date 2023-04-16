@@ -69,6 +69,16 @@ char *get_command(cmdLine *pCmdLine)
         strcat(command, " ");
         strcat(command, pCmdLine->arguments[i]);
     }
+    if (pCmdLine->inputRedirect)
+    {
+        strcat(command, " < ");
+        strcat(command, pCmdLine->inputRedirect);
+    }
+    if (pCmdLine->outputRedirect)
+    {
+        strcat(command, " > ");
+        strcat(command, pCmdLine->outputRedirect);
+    }
     return command;
 }
 void freeProcessList(process *process_list)
