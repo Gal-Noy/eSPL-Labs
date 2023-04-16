@@ -54,10 +54,8 @@ void io_process(cmdLine *pCmdLine, const char *fd, int flags, int stdfd, char *e
         close(res);
     }
 }
-
-void execute(cmdLine *pCmdLine)
+int special_commands_process(cmdLine *pCmdLine)
 {
-    int child_pid;
     char *arg = pCmdLine->arguments[0];
 
     if (strcmp(arg, "quit") == 0)
@@ -65,23 +63,32 @@ void execute(cmdLine *pCmdLine)
     else if (strcmp(arg, "cd") == 0)
     {
         change_directory(pCmdLine);
-        return;
+        return 1;
     }
     else if (strcmp(arg, "suspend") == 0)
     {
         signal_process(pCmdLine, SIGTSTP);
-        return;
+        return 1;
     }
     else if (strcmp(arg, "wake") == 0)
     {
         signal_process(pCmdLine, SIGCONT);
-        return;
+        return 1;
     }
     else if (strcmp(arg, "kill") == 0)
     {
         signal_process(pCmdLine, SIGINT);
-        return;
+        return 1;
     }
+    return 0;
+}
+void execute(cmdLine *pCmdLine)
+{
+    int child_pid;
+    char *arg = pCmdLine->arguments[0];
+
+    if (special_commands_process(pCmdLine))
+        return;
 
     child_pid = fork();
 
