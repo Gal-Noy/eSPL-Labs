@@ -84,6 +84,9 @@ int special_commands_process(cmdLine *pCmdLine)
 }
 void pipe_process(cmdLine *pCmdLine)
 {
+    if (pCmdLine->outputRedirect || pCmdLine->next->inputRedirect)
+        exit_program(pCmdLine, 0, "Illegal redirecting error", 0);
+
     int pid1, pid2, pipefd[2];
     if (pipe(pipefd) < 0)
         exit_program(pCmdLine, 0, "pipe error", 0);
@@ -98,8 +101,10 @@ void pipe_process(cmdLine *pCmdLine)
         close(STDOUT_FILENO);
         dup(pipefd[1]);
         close(pipefd[1]);
-        execvp(pCmdLine->arguments[0], pCmdLine->arguments);
-        exit_program(pCmdLine, 0, "execvp() error", 1);
+
+        io_process(pCmdLine, pCmdLine->inputRedirect, O_RDONLY, STDIN_FILENO, "open() inputRedirect error");
+        if (execvp(pCmdLine->arguments[0], pCmdLine->arguments) < 0)
+            exit_program(pCmdLine, 0, "execvp() error", 1);
         break;
     default:
         close(pipefd[1]);
@@ -107,14 +112,15 @@ void pipe_process(cmdLine *pCmdLine)
         switch (pid2)
         {
         case -1:
-            exit_program(pCmdLine, 0, "child2 fork error", 0);
+            exit_program(pCmdLine->next, 0, "child2 fork error", 0);
             break;
         case 0:
             close(STDIN_FILENO);
             dup(pipefd[0]);
             close(pipefd[0]);
-            if (execvp(pCmdLine->arguments[0], pCmdLine->next->arguments) < 0)
-                exit_program(pCmdLine, 0, "execvp() error", 1);
+            io_process(pCmdLine->next, pCmdLine->next->outputRedirect, O_WRONLY | O_CREAT | O_TRUNC, STDOUT_FILENO, "open() outputRedirect error");
+            if (execvp(pCmdLine->next->arguments[0], pCmdLine->next->arguments) < 0)
+                exit_program(pCmdLine->next, 0, "execvp() error", 1);
             break;
         default:
             close(pipefd[0]);
