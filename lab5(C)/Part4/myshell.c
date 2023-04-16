@@ -238,6 +238,9 @@ void io_process(cmdLine *pCmdLine, const char *fd, int flags, int stdfd, char *e
 }
 void pipe_process(cmdLine *pCmdLine)
 {
+    add_to_history(get_command(pCmdLine));
+    add_to_history(get_command(pCmdLine->next));
+
     if (pCmdLine->outputRedirect || pCmdLine->next->inputRedirect)
         exit_program(pCmdLine, 0, "Illegal redirecting error", 0);
 
