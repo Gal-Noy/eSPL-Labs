@@ -343,36 +343,28 @@ int history_command(cmdLine *pCmdLine)
     }
     return 0;
 }
-int history_retrieve(cmdLine *pCmdLine)
+cmdLine *history_retrieve(int n)
 {
-    char *arg, *nth_command;
-    arg = pCmdLine->arguments[0];
+    char *nth_command;
 
-    if (arg[0] == '!')
+    if (!entries)
     {
-        if (!entries)
+        fprintf(stderr, "No commands in history\n");
+        return NULL;
+    }
+    else
+    {
+        if (n >= 1 && n <= entries)
         {
-            fprintf(stderr, "No commands in history\n");
-            return 0;
+            nth_command = history[(newest - n + HISTLEN) % HISTLEN];
+            return parseCmdLines(nth_command);
         }
         else
         {
-            int n = arg[1] == '!' ? 1 : atoi(arg + 1);
-            if (n >= 1 && n <= entries)
-            {
-                nth_command = history[(newest - n + HISTLEN) % HISTLEN];
-                // add_to_history(nth_command);
-                pCmdLine = parseCmdLines(nth_command);
-                printf("%s", nth_command);
-            }
-            else
-            {
-                fprintf(stderr, "Invalid history index\n");
-                return 0;
-            }
+            fprintf(stderr, "Invalid history index\n");
+            return NULL;
         }
     }
-    return 1;
 }
 
 void execute(cmdLine *pCmdLine)
@@ -382,14 +374,21 @@ void execute(cmdLine *pCmdLine)
 
     if (history_command(pCmdLine))
         return;
-    // if (!history_retrieve(pCmdLine))
-    //     return;
+    if (arg[0] == '!')
+    {
+        freeCmdLines(pCmdLine);
+        pCmdLine = history_retrieve(arg[1] == '!' ? 1 : atoi(arg + 1));
+    }
+    if (!pCmdLine)
+        return;
+
     if (special_commands_process(pCmdLine))
     {
         add_to_history(get_command(pCmdLine));
         freeCmdLines(pCmdLine);
         return;
     }
+
     if (pCmdLine->next)
         pipe_process(pCmdLine);
     else
@@ -438,8 +437,6 @@ int main(int argc, char **argv)
             continue;
 
         execute(pCmdLine);
-
-        // freeCmdLines(pCmdLine);
     }
 
     return 0;
