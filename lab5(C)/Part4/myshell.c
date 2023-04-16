@@ -345,8 +345,6 @@ int history_command(cmdLine *pCmdLine)
 }
 cmdLine *history_retrieve(int n)
 {
-    char *nth_command;
-
     if (!entries)
     {
         fprintf(stderr, "No commands in history\n");
@@ -355,10 +353,7 @@ cmdLine *history_retrieve(int n)
     else
     {
         if (n >= 1 && n <= entries)
-        {
-            nth_command = history[(newest - n + HISTLEN) % HISTLEN];
-            return parseCmdLines(nth_command);
-        }
+            return parseCmdLines(history[(newest - n + HISTLEN) % HISTLEN]);
         else
         {
             fprintf(stderr, "Invalid history index\n");
@@ -376,8 +371,9 @@ void execute(cmdLine *pCmdLine)
         return;
     if (arg[0] == '!')
     {
+        int n = arg[1] == '!' ? 1 : atoi(arg + 1);
         freeCmdLines(pCmdLine);
-        pCmdLine = history_retrieve(arg[1] == '!' ? 1 : atoi(arg + 1));
+        pCmdLine = history_retrieve(n);
     }
     if (!pCmdLine)
         return;
@@ -403,7 +399,7 @@ void execute(cmdLine *pCmdLine)
         case 0:
             io_process(pCmdLine, pCmdLine->inputRedirect, O_RDONLY, STDIN_FILENO, "open() inputRedirect error");
             io_process(pCmdLine, pCmdLine->outputRedirect, O_WRONLY | O_CREAT | O_TRUNC, STDOUT_FILENO, "open() outputRedirect error");
-            if (execvp(arg, pCmdLine->arguments) < 0)
+            if (execvp(pCmdLine->arguments[0], pCmdLine->arguments) < 0)
                 exit_program(pCmdLine, 0, "execvp() error", 1);
             break;
         }
