@@ -49,12 +49,13 @@ void addProcess(process **process_list, cmdLine *cmd, pid_t pid)
 }
 void updateProcessList(process **process_list)
 {
-    int status, result;
+    int status, res;
     process *curr = *process_list;
+
     while (curr)
     {
-        result = waitpid(curr->pid, &status, WNOHANG);
-        if (result < 0)
+        res = waitpid(curr->pid, &status, WNOHANG);
+        if (res < 0)
         {
             // process doesn't exist
             curr = curr->next;
@@ -64,7 +65,7 @@ void updateProcessList(process **process_list)
             curr->status = SUSPENDED;
         else if (WIFCONTINUED(status))
             curr->status = RUNNING;
-        else if (WIFEXITED(status))
+        else if (WIFSIGNALED(status))
             curr->status = TERMINATED;
 
         curr = curr->next;
