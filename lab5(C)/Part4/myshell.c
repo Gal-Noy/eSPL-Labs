@@ -242,13 +242,14 @@ void io_process(cmdLine *pCmdLine, const char *fd, int flags, int stdfd, char *e
 }
 void pipe_process(cmdLine *pCmdLine)
 {
+    int pid1, pid2, pipefd[2];
+
     add_to_history(get_command(pCmdLine));
     add_to_history(get_command(pCmdLine->next));
 
     if (pCmdLine->outputRedirect || pCmdLine->next->inputRedirect)
         exit_program(pCmdLine, 0, "Illegal redirecting error", 0);
 
-    int pid1, pid2, pipefd[2];
     if (pipe(pipefd) < 0)
         exit_program(pCmdLine, 0, "pipe error", 0);
 
@@ -262,13 +263,12 @@ void pipe_process(cmdLine *pCmdLine)
         close(STDOUT_FILENO);
         dup(pipefd[1]);
         close(pipefd[1]);
-
         io_process(pCmdLine, pCmdLine->inputRedirect, O_RDONLY, STDIN_FILENO, "open() inputRedirect error");
         if (execvp(pCmdLine->arguments[0], pCmdLine->arguments) < 0)
             exit_program(pCmdLine, 0, "execvp() error", 1);
         break;
     default:
-        addProcess(&process_list, pCmdLine, pid1); // add process to the list
+        addProcess(&process_list, pCmdLine, pid1);
         close(pipefd[1]);
         pid2 = fork();
         switch (pid2)
@@ -285,7 +285,7 @@ void pipe_process(cmdLine *pCmdLine)
                 exit_program(pCmdLine->next, 0, "execvp() error", 1);
             break;
         default:
-            addProcess(&process_list, pCmdLine->next, pid2); // add process to the list
+            addProcess(&process_list, pCmdLine->next, pid2);
             close(pipefd[0]);
             waitpid(pid1, NULL, 0);
             waitpid(pid2, NULL, 0);
@@ -366,14 +366,15 @@ void execute(cmdLine *pCmdLine)
 
     if (history_command(pCmdLine))
         return;
-    if (arg[0] == '!')
+    if (arg[0] == '!') // Should retrieve history command
     {
         int n = arg[1] == '!' ? 0 : atoi(arg + 1);
         freeCmdLines(pCmdLine);
         pCmdLine = history_retrieve(n);
+
+        if (!pCmdLine)
+            return;
     }
-    if (!pCmdLine)
-        return;
 
     if (special_commands_process(pCmdLine))
     {
@@ -387,6 +388,7 @@ void execute(cmdLine *pCmdLine)
     else
     {
         add_to_history(get_command(pCmdLine));
+
         child_pid = fork();
         switch (child_pid)
         {
@@ -404,7 +406,7 @@ void execute(cmdLine *pCmdLine)
         if (debug)
             fprintf(stderr, "PID: %d\nExecuting command: %s\n", child_pid, arg);
 
-        addProcess(&process_list, pCmdLine, child_pid); // Add process to the list
+        addProcess(&process_list, pCmdLine, child_pid);
 
         if (pCmdLine->blocking)
             waitpid(child_pid, NULL, 0);
