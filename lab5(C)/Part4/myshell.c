@@ -29,7 +29,7 @@ int oldest = 0, newest = 0, entries = 0, debug = 0;
 
 void free_history()
 {
-    for (int i = 0; i < entries; i++)
+    for (int i = 0; i < HISTLEN; i++)
         free(history[i]);
 }
 void print_history()
@@ -44,19 +44,14 @@ void print_history()
 }
 void add_to_history(char *command)
 {
+    free(history[newest]);
+    history[newest] = command;
+    newest = (newest + 1) % HISTLEN;
+
     if (entries < HISTLEN)
-    {
-        history[newest] = strdup(command);
-        newest = (newest + 1) % HISTLEN;
         entries++;
-    }
     else
-    {
-        free(history[oldest]);
-        history[oldest] = strdup(command);
         oldest = (oldest + 1) % HISTLEN;
-    }
-    free(command);
 }
 char *get_command(cmdLine *pCmdLine)
 {
@@ -351,8 +346,11 @@ cmdLine *history_retrieve(int n)
     }
     else
     {
-        if (n >= 1 && n <= entries)
-            return parseCmdLines(history[(oldest + n - 1) % HISTLEN]);
+        if (n >= 0 && n <= entries)
+        {
+            int idx = n == 0 ? (newest - 1 + HISTLEN) % HISTLEN : (newest - entries + n - 1 + HISTLEN) % HISTLEN;
+            return parseCmdLines(history[idx]);
+        }
         else
         {
             fprintf(stderr, "Invalid history index\n");
@@ -370,7 +368,7 @@ void execute(cmdLine *pCmdLine)
         return;
     if (arg[0] == '!')
     {
-        int n = arg[1] == '!' ? newest : atoi(arg + 1);
+        int n = arg[1] == '!' ? 0 : atoi(arg + 1);
         freeCmdLines(pCmdLine);
         pCmdLine = history_retrieve(n);
     }
