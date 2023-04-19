@@ -46,11 +46,14 @@ void execute(cmdLine *pCmdLine)
             perror("execvp() error");
             _exit(0);
         }
-    if (debug)
-        fprintf(stderr, "PID: %d\nExecuting command: %s\n", child_pid, pCmdLine->arguments[0]);
+        else
+        {
+            if (debug)
+                fprintf(stderr, "PID: %d\nExecuting command: %s\n", child_pid, pCmdLine->arguments[0]);
 
-    if (pCmdLine->blocking)
-        waitpid(child_pid, NULL, 0);
+            if (pCmdLine->blocking)
+                waitpid(child_pid, NULL, 0);
+        }
 }
 
 int main(int argc, char **argv)
@@ -68,7 +71,8 @@ int main(int argc, char **argv)
         printf("%s : ", curr_dir);
 
         fgets(line, 2048, stdin);
-        pCmdLine = parseCmdLines(line);
+        if (!(pCmdLine = parseCmdLines(line)))
+            continue;
 
         execute(pCmdLine);
 

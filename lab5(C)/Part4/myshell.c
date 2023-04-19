@@ -201,7 +201,7 @@ void exit_program(cmdLine *pCmdLine, int code, char *error, int use_exit)
 void change_directory(cmdLine *pCmdLine)
 {
     if (chdir(pCmdLine->arguments[1]) < 0)
-        exit_program(pCmdLine, 0, "chdir() error", 0);
+        exit_program(pCmdLine, 1, "chdir() error", 0);
 }
 void signal_process(cmdLine *pCmdLine, int signal)
 {
@@ -209,7 +209,10 @@ void signal_process(cmdLine *pCmdLine, int signal)
     int pid = atoi(pCmdLine->arguments[1]);
 
     if (kill(pid, signal) < 0)
-        exit_program(pCmdLine, 0, "kill() error", 0);
+    {
+        perror("kill() error");
+        return;
+    }
 
     switch (signal)
     {
@@ -233,10 +236,16 @@ void io_process(cmdLine *pCmdLine, const char *fd, int flags, int stdfd, char *e
     if (fd)
     {
         int res = open(fd, flags, 0644);
-        if (res < 0)
-            exit_program(pCmdLine, 0, error, 0);
-        if (dup2(res, stdfd) < 0)
-            exit_program(pCmdLine, 0, error, 0);
+        if (res == -1)
+        {
+            close(res);
+            exit_program(pCmdLine, 1, error, 0);
+        }
+        if (dup2(res, stdfd) == -1)
+        {
+            close(res);
+            exit_program(pCmdLine, 1, error, 0);
+        }
         close(res);
     }
 }
@@ -248,16 +257,16 @@ void pipe_process(cmdLine *pCmdLine)
     add_to_history(get_command(pCmdLine->next));
 
     if (pCmdLine->outputRedirect || pCmdLine->next->inputRedirect)
-        exit_program(pCmdLine, 0, "Illegal redirecting error", 0);
+        exit_program(pCmdLine, 1, "Illegal redirecting error", 0);
 
     if (pipe(pipefd) < 0)
-        exit_program(pCmdLine, 0, "pipe error", 0);
+        exit_program(pCmdLine, 1, "pipe error", 0);
 
     pid1 = fork();
     switch (pid1)
     {
     case -1:
-        exit_program(pCmdLine, 0, "child1 fork error", 0);
+        exit_program(pCmdLine, 1, "child1 fork error", 0);
         break;
     case 0:
         close(STDOUT_FILENO);
@@ -265,7 +274,7 @@ void pipe_process(cmdLine *pCmdLine)
         close(pipefd[1]);
         io_process(pCmdLine, pCmdLine->inputRedirect, O_RDONLY, STDIN_FILENO, "open() inputRedirect error");
         if (execvp(pCmdLine->arguments[0], pCmdLine->arguments) < 0)
-            exit_program(pCmdLine, 0, "execvp() error", 1);
+            exit_program(pCmdLine, 1, "execvp() error", 1);
         break;
     default:
         addProcess(&process_list, pCmdLine, pid1);
@@ -282,7 +291,7 @@ void pipe_process(cmdLine *pCmdLine)
             close(pipefd[0]);
             io_process(pCmdLine->next, pCmdLine->next->outputRedirect, O_WRONLY | O_CREAT | O_TRUNC, STDOUT_FILENO, "open() outputRedirect error");
             if (execvp(pCmdLine->next->arguments[0], pCmdLine->next->arguments) < 0)
-                exit_program(pCmdLine->next, 0, "execvp() error", 1);
+                exit_program(pCmdLine->next, 1, "execvp() error", 1);
             break;
         default:
             addProcess(&process_list, pCmdLine->next, pid2);
@@ -298,7 +307,7 @@ int special_commands_process(cmdLine *pCmdLine)
     int special = 0;
 
     if (strcmp(arg, "quit") == 0)
-        exit_program(pCmdLine, 1, NULL, 0);
+        exit_program(pCmdLine, 0, NULL, 0);
     else if (strcmp(arg, "cd") == 0)
     {
         change_directory(pCmdLine);
@@ -393,13 +402,15 @@ void execute(cmdLine *pCmdLine)
         switch (child_pid)
         {
         case -1:
-            exit_program(pCmdLine, 0, "fork() error", 0);
+            exit_program(pCmdLine, 1, "fork() error", 0);
             break;
         case 0:
-            io_process(pCmdLine, pCmdLine->inputRedirect, O_RDONLY, STDIN_FILENO, "open() inputRedirect error");
-            io_process(pCmdLine, pCmdLine->outputRedirect, O_WRONLY | O_CREAT | O_TRUNC, STDOUT_FILENO, "open() outputRedirect error");
+            if (pCmdLine->inputRedirect)
+                io_process(pCmdLine, pCmdLine->inputRedirect, O_RDONLY, STDIN_FILENO, "open() inputRedirect error");
+            if (pCmdLine->outputRedirect)
+                io_process(pCmdLine, pCmdLine->outputRedirect, O_WRONLY | O_CREAT | O_TRUNC, STDOUT_FILENO, "open() outputRedirect error");
             if (execvp(pCmdLine->arguments[0], pCmdLine->arguments) < 0)
-                exit_program(pCmdLine, 0, "execvp() error", 1);
+                exit_program(pCmdLine, 1, "execvp() error", 1);
             break;
         }
 

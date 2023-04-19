@@ -33,7 +33,8 @@ int main(int argc, char **argv)
         printf("%s : ", curr_dir);
 
         fgets(line, 2048, stdin);
-        pCmdLine = parseCmdLines(line);
+        if (!(pCmdLine = parseCmdLines(line)))
+            continue;
 
         execute(pCmdLine);
 

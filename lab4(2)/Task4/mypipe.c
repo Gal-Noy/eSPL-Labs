@@ -1,3 +1,5 @@
+/*Done by Yuval Raviv, ID: 206589210 and Gal Yaacov Noy, ID: 209346485*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -5,32 +7,32 @@
 
 int main(int argc, char **argv)
 {
-    int pipefd[2], pid;
+    int pipefd[2], child_pid;
     char *message = "hello";
 
-    if (pipe(pipefd) == -1)
+    if (pipe(pipefd) < 0)
     {
         perror("pipe error");
-        exit(0);
+        exit(1);
     }
 
-    pid = fork();
+    child_pid = fork();
 
-    if (pid < 0)
+    if (child_pid < 0)
     {
         perror("fork() error");
-        exit(0);
+        exit(1);
     }
-    else if (pid == 0)
+    else if (child_pid == 0) // Child process
     {
         close(pipefd[0]);
 
-        write(pipefd[1], message, 6);
+        write(pipefd[1], message, sizeof(message));
         close(pipefd[1]);
 
-        exit(1);
+        exit(0);
     }
-    else
+    else // Parent process
     {
         close(pipefd[1]);
 
@@ -38,6 +40,6 @@ int main(int argc, char **argv)
         printf("Received message: %s\n", message);
         close(pipefd[0]);
 
-        exit(1);
+        exit(0);
     }
 }
