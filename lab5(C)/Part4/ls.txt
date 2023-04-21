@@ -1,0 +1,17 @@
+gal.txt
+input.txt
+in.txt
+LineParser.c
+LineParser.h
+LineParser.o
+looper
+looper.c
+looper.o
+ls.txt
+makefile
+mypipe.c
+myshell
+myshell.c
+myshell.o
+output.txt
+out.txt

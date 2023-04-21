@@ -44,7 +44,9 @@ void print_history()
 }
 void add_to_history(char *command)
 {
-    free(history[newest]);
+    if (history[newest])
+        free(history[newest]);
+
     history[newest] = command;
     newest = (newest + 1) % HISTLEN;
 
@@ -98,39 +100,30 @@ void addProcess(process **process_list, cmdLine *cmd, pid_t pid)
     new_process->next = *process_list;
     *process_list = new_process;
 }
+void updateProcessStatus(process *process_list, int pid, int status)
+{
+    process *curr = process_list;
+    while (curr && curr->pid != pid) // Search for desired process
+        curr = curr->next;
+    if (curr)
+        curr->status = status;
+}
 void updateProcessList(process **process_list)
 {
-    int status, res;
+    int res, status = RUNNING;
     process *curr = *process_list;
 
     while (curr)
     {
         res = waitpid(curr->pid, &status, WNOHANG);
-        if (res < 0)
+        if (res)
         {
-            // process doesn't exist
-            curr = curr->next;
-            continue;
-        }
-        if (WIFSTOPPED(status))
-            curr->status = SUSPENDED;
-        else if (WIFCONTINUED(status))
-            curr->status = RUNNING;
-        else if (WIFSIGNALED(status))
-            curr->status = TERMINATED;
-
-        curr = curr->next;
-    }
-}
-void updateProcessStatus(process *process_list, int pid, int status)
-{
-    process *curr = process_list;
-    while (curr)
-    {
-        if (curr->pid == pid)
-        {
-            curr->status = status;
-            break;
+            if (WIFSTOPPED(status))
+                curr->status = SUSPENDED;
+            else if (WIFCONTINUED(status))
+                curr->status = RUNNING;
+            else if (WIFSIGNALED(status))
+                curr->status = TERMINATED;
         }
         curr = curr->next;
     }
@@ -140,59 +133,59 @@ void printProcessList(process **process_list)
     updateProcessList(process_list);
 
     process *curr, *tmp, *prev = NULL;
+    char *curr_command, *status_str;
     curr = *process_list;
 
-    printf("PID\tStatus\tCommand\n");
+    printf("%-20s%-20s%s\n", "PID", "Command", "Status");
     while (curr)
     {
-        printf("%d\t", curr->pid);
-        for (int i = 0; i < curr->cmd->argCount; i++)
-            printf("%s ", curr->cmd->arguments[i]);
-        printf("\t");
-
+        curr_command = get_command(curr->cmd);
         switch (curr->status)
         {
         case RUNNING:
-            printf("Running\n");
+            status_str = "Running";
             break;
         case SUSPENDED:
-            printf("Suspended\n");
+            status_str = "Suspended";
             break;
         case TERMINATED:
-            printf("Terminated\n");
+            status_str = "Terminated";
+            break;
+        }
+        printf("%-20d%-20s%s\n", curr->pid, curr_command, status_str);
 
+        free(curr_command);
+
+        if (curr->status == TERMINATED)
+        {
             // Delete the process from the list
-            if (!prev)
-                *process_list = curr->next;
-            else
-                prev->next = curr->next;
-
             tmp = curr;
             curr = curr->next;
             freeCmdLines(tmp->cmd);
             free(tmp);
-            continue;
-        default:
-            break;
+            if (prev)
+                prev->next = curr;
+            else // Update process_list if the first process is terminated
+                *process_list = curr;
         }
-        prev = curr;
-        curr = curr->next;
+        else
+        {
+            prev = curr;
+            curr = curr->next;
+        }
     }
-}
-void print_directory()
-{
-    char curr_dir[PATH_MAX];
-    getcwd(curr_dir, PATH_MAX);
-    printf("%s : ", curr_dir);
 }
 void exit_program(cmdLine *pCmdLine, int code, char *error, int use_exit)
 {
     if (error)
         perror(error);
+
+    // Free memory
     free_history();
+    freeProcessList(process_list);
     if (pCmdLine)
         freeCmdLines(pCmdLine);
-    freeProcessList(process_list);
+
     if (use_exit)
         exit(code);
     else
@@ -205,7 +198,6 @@ void change_directory(cmdLine *pCmdLine)
 }
 void signal_process(cmdLine *pCmdLine, int signal)
 {
-    const char *status;
     int pid = atoi(pCmdLine->arguments[1]);
 
     if (kill(pid, signal) < 0)
@@ -217,19 +209,18 @@ void signal_process(cmdLine *pCmdLine, int signal)
     switch (signal)
     {
     case SIGTSTP:
-        status = "suspended";
+        updateProcessStatus(process_list, pid, SUSPENDED);
+        printf("Process %d has been suspended.\n", pid);
         break;
     case SIGCONT:
-        status = "woken up";
+        updateProcessStatus(process_list, pid, RUNNING);
+        printf("Process %d has been woken up.\n", pid);
         break;
-    default:
-        status = "terminated";
+    case SIGINT:
+        updateProcessStatus(process_list, pid, TERMINATED);
+        printf("Process %d has been terminated.\n", pid);
         break;
     }
-
-    updateProcessStatus(process_list, pid, signal == SIGTSTP ? SUSPENDED : signal == SIGCONT ? RUNNING
-                                                                                             : TERMINATED);
-    printf("Process %d has been %s.\n", pid, status);
 }
 void io_process(cmdLine *pCmdLine, const char *fd, int flags, int stdfd, char *error)
 {
@@ -249,53 +240,63 @@ void io_process(cmdLine *pCmdLine, const char *fd, int flags, int stdfd, char *e
         close(res);
     }
 }
-void pipe_process(cmdLine *pCmdLine)
+void pipe_process(cmdLine *cmd1, cmdLine *cmd2)
 {
     int pid1, pid2, pipefd[2];
 
-    add_to_history(get_command(pCmdLine));
-    add_to_history(get_command(pCmdLine->next));
+    add_to_history(get_command(cmd1));
+    add_to_history(get_command(cmd2));
 
-    if (pCmdLine->outputRedirect || pCmdLine->next->inputRedirect)
-        exit_program(pCmdLine, 1, "Illegal redirecting error", 0);
+    cmd1->next = NULL; // Separate between the commands
+
+    if (cmd1->outputRedirect || cmd2->inputRedirect)
+        exit_program(cmd1, 1, "Illegal redirecting error", 0);
 
     if (pipe(pipefd) < 0)
-        exit_program(pCmdLine, 1, "pipe error", 0);
+        exit_program(cmd1, 1, "pipe error", 0);
 
     pid1 = fork();
     switch (pid1)
     {
     case -1:
-        exit_program(pCmdLine, 1, "child1 fork error", 0);
+        exit_program(cmd1, 1, "child1 fork error", 0);
         break;
-    case 0:
+    case 0: // Child1 process
         close(STDOUT_FILENO);
         dup(pipefd[1]);
         close(pipefd[1]);
-        io_process(pCmdLine, pCmdLine->inputRedirect, O_RDONLY, STDIN_FILENO, "open() inputRedirect error");
-        if (execvp(pCmdLine->arguments[0], pCmdLine->arguments) < 0)
-            exit_program(pCmdLine, 1, "execvp() error", 1);
+        io_process(cmd1, cmd1->inputRedirect, O_RDONLY, STDIN_FILENO, "open() inputRedirect error");
+        if (execvp(cmd1->arguments[0], cmd1->arguments) < 0)
+            exit_program(cmd1, 1, "execvp() error", 1);
         break;
     default:
-        addProcess(&process_list, pCmdLine, pid1);
         close(pipefd[1]);
         pid2 = fork();
         switch (pid2)
         {
         case -1:
-            exit_program(pCmdLine->next, 0, "child2 fork error", 0);
+            exit_program(cmd2, 0, "child2 fork error", 0);
             break;
-        case 0:
+        case 0: // Child2 process
             close(STDIN_FILENO);
             dup(pipefd[0]);
             close(pipefd[0]);
-            io_process(pCmdLine->next, pCmdLine->next->outputRedirect, O_WRONLY | O_CREAT | O_TRUNC, STDOUT_FILENO, "open() outputRedirect error");
-            if (execvp(pCmdLine->next->arguments[0], pCmdLine->next->arguments) < 0)
-                exit_program(pCmdLine->next, 1, "execvp() error", 1);
+            io_process(cmd2, cmd2->outputRedirect, O_WRONLY | O_CREAT | O_TRUNC, STDOUT_FILENO, "open() outputRedirect error");
+            if (execvp(cmd2->arguments[0], cmd2->arguments) < 0)
+                exit_program(cmd2, 1, "execvp() error", 1);
             break;
-        default:
-            addProcess(&process_list, pCmdLine->next, pid2);
+        default: // Parent process
             close(pipefd[0]);
+
+            if (debug)
+            {
+                fprintf(stderr, "PID: %d\nExecuting command: %s\n", pid1, cmd1->arguments[0]);
+                fprintf(stderr, "PID: %d\nExecuting command: %s\n", pid2, cmd2->arguments[0]);
+            }
+
+            addProcess(&process_list, cmd1, pid1);
+            addProcess(&process_list, cmd2, pid2);
+
             waitpid(pid1, NULL, 0);
             waitpid(pid2, NULL, 0);
         }
@@ -341,7 +342,7 @@ int history_command(cmdLine *pCmdLine)
     if (strcmp(pCmdLine->arguments[0], "history") == 0)
     {
         print_history();
-        freeCmdLines(pCmdLine);
+        freeCmdLines(pCmdLine); // Not a process
         return 1;
     }
     return 0;
@@ -371,29 +372,32 @@ cmdLine *history_retrieve(int n)
 void execute(cmdLine *pCmdLine)
 {
     int child_pid;
-    char *arg = pCmdLine->arguments[0];
+    char *curr_command, *arg = pCmdLine->arguments[0];
 
     if (history_command(pCmdLine))
         return;
     if (arg[0] == '!') // Should retrieve history command
     {
         int n = arg[1] == '!' ? 0 : atoi(arg + 1);
-        freeCmdLines(pCmdLine);
-        pCmdLine = history_retrieve(n);
-
-        if (!pCmdLine)
+        freeCmdLines(pCmdLine); // Not a process
+        if (!(pCmdLine = history_retrieve(n)))
             return;
+
+        // Print retrieved command
+        curr_command = get_command(pCmdLine);
+        printf("%s\n", curr_command);
+        free(curr_command);
     }
 
     if (special_commands_process(pCmdLine))
     {
         add_to_history(get_command(pCmdLine));
-        freeCmdLines(pCmdLine);
+        freeCmdLines(pCmdLine); // Not a process
         return;
     }
 
     if (pCmdLine->next)
-        pipe_process(pCmdLine);
+        pipe_process(pCmdLine, pCmdLine->next);
     else
     {
         add_to_history(get_command(pCmdLine));
@@ -404,7 +408,7 @@ void execute(cmdLine *pCmdLine)
         case -1:
             exit_program(pCmdLine, 1, "fork() error", 0);
             break;
-        case 0:
+        case 0: // Child process
             if (pCmdLine->inputRedirect)
                 io_process(pCmdLine, pCmdLine->inputRedirect, O_RDONLY, STDIN_FILENO, "open() inputRedirect error");
             if (pCmdLine->outputRedirect)
@@ -412,21 +416,21 @@ void execute(cmdLine *pCmdLine)
             if (execvp(pCmdLine->arguments[0], pCmdLine->arguments) < 0)
                 exit_program(pCmdLine, 1, "execvp() error", 1);
             break;
+        default: // Parent process
+            if (debug)
+                fprintf(stderr, "PID: %d\nExecuting command: %s\n", child_pid, pCmdLine->arguments[0]);
+
+            addProcess(&process_list, pCmdLine, child_pid);
+
+            if (pCmdLine->blocking)
+                waitpid(child_pid, NULL, 0);
         }
-
-        if (debug)
-            fprintf(stderr, "PID: %d\nExecuting command: %s\n", child_pid, arg);
-
-        addProcess(&process_list, pCmdLine, child_pid);
-
-        if (pCmdLine->blocking)
-            waitpid(child_pid, NULL, 0);
     }
 }
 
 int main(int argc, char **argv)
 {
-    char line[LINE_SIZE];
+    char line[LINE_SIZE], curr_dir[PATH_MAX];
     cmdLine *pCmdLine;
 
     for (int i = 0; i < argc; i++)
@@ -435,13 +439,16 @@ int main(int argc, char **argv)
 
     while (1)
     {
-        print_directory();
+        // Print directory
+        getcwd(curr_dir, PATH_MAX);
+        printf("%s : ", curr_dir);
 
+        // Parse command
         fgets(line, LINE_SIZE, stdin);
-        pCmdLine = parseCmdLines(line);
-        if (!pCmdLine)
+        if (!(pCmdLine = parseCmdLines(line)))
             continue;
 
+        // Process command
         execute(pCmdLine);
     }
 
