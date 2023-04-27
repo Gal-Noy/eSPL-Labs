@@ -334,19 +334,15 @@ int special_commands_process(cmdLine *pCmdLine)
         printProcessList(&process_list);
         special = 1;
     }
+    else if (strcmp(arg, "history") == 0)
+    {
+        print_history();
+        special = 1;
+    }
 
     return special;
 }
-int history_command(cmdLine *pCmdLine)
-{
-    if (strcmp(pCmdLine->arguments[0], "history") == 0)
-    {
-        print_history();
-        freeCmdLines(pCmdLine); // Not a process
-        return 1;
-    }
-    return 0;
-}
+
 cmdLine *history_retrieve(int n)
 {
     if (!entries)
@@ -374,8 +370,6 @@ void execute(cmdLine *pCmdLine)
     int child_pid;
     char *curr_command, *arg = pCmdLine->arguments[0];
 
-    if (history_command(pCmdLine))
-        return;
     if (arg[0] == '!') // Should retrieve history command
     {
         int n = arg[1] == '!' ? 0 : atoi(arg + 1);
