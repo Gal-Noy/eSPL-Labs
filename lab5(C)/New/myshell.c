@@ -10,7 +10,7 @@
 #include "LineParser.h"
 
 #define LINE_SIZE 2048
-#define HISTLEN 20
+#define HISTLEN 3
 #define TERMINATED -1
 #define RUNNING 1
 #define SUSPENDED 0
@@ -25,7 +25,7 @@ typedef struct process
 
 process *process_list = NULL;
 char *history[HISTLEN];
-int oldest = 0, newest = 0, entries = 0, debug = 0;
+int oldest = 0, newest = 0, debug = 0;
 
 void free_history()
 {
@@ -34,25 +34,31 @@ void free_history()
 }
 void print_history()
 {
-    int i, j;
     printf("Command History:\n");
-    for (i = 0, j = oldest; i < entries; i++)
+    for (int i = 0; i < HISTLEN; i++)
     {
-        printf("%d: %s\n", i + 1, history[j]);
-        j = (j + 1) % HISTLEN;
+        int curr = ((history[newest] ? -1 : 0) + i + oldest + HISTLEN) % HISTLEN;
+        if (history[curr])
+            printf("%d %s", i + 1, history[curr]);
     }
 }
 void add_to_history(char *command)
 {
+    if (command && (command[0] == '!' ||
+                    (newest > 0 && history[(newest - 1 + HISTLEN) % HISTLEN] &&
+                     strcmp(command, history[(newest - 1 + HISTLEN) % HISTLEN]) == 0)))
+    {
+        free(command);
+        return;
+    }
+
     if (history[newest])
         free(history[newest]);
 
     history[newest] = command;
     newest = (newest + 1) % HISTLEN;
 
-    if (entries < HISTLEN)
-        entries++;
-    else
+    if (newest == oldest)
         oldest = (oldest + 1) % HISTLEN;
 }
 char *get_command(cmdLine *pCmdLine)
@@ -244,9 +250,6 @@ void pipe_process(cmdLine *cmd1, cmdLine *cmd2)
 {
     int pid1, pid2, pipefd[2];
 
-    add_to_history(get_command(cmd1));
-    add_to_history(get_command(cmd2));
-
     cmd1->next = NULL; // Separate between the commands
 
     if (cmd1->outputRedirect || cmd2->inputRedirect)
@@ -334,38 +337,29 @@ int special_commands_process(cmdLine *pCmdLine)
         printProcessList(&process_list);
         special = 1;
     }
+    else if (strcmp(arg, "history") == 0)
+    {
+        print_history();
+        special = 1;
+    }
+    if (special)
+        freeCmdLines(pCmdLine);
 
     return special;
 }
-int history_command(cmdLine *pCmdLine)
-{
-    if (strcmp(pCmdLine->arguments[0], "history") == 0)
-    {
-        print_history();
-        freeCmdLines(pCmdLine); // Not a process
-        return 1;
-    }
-    return 0;
-}
+
 cmdLine *history_retrieve(int n)
 {
-    if (!entries)
+    int idx = n == -1 ? (newest - 1 + HISTLEN) % HISTLEN : ((history[newest] ? -1 : 0) + n + oldest + HISTLEN - 1) % HISTLEN;
+    if ((n == -1 || (n >= 1 && n <= HISTLEN)) && history[idx])
     {
-        fprintf(stderr, "No commands in history\n");
-        return NULL;
+        add_to_history(strdup(history[idx]));
+        return parseCmdLines(history[idx]);
     }
     else
     {
-        if (n >= 0 && n <= entries)
-        {
-            int idx = n == 0 ? (newest - 1 + HISTLEN) % HISTLEN : (newest - entries + n - 1 + HISTLEN) % HISTLEN;
-            return parseCmdLines(history[idx]);
-        }
-        else
-        {
-            fprintf(stderr, "Invalid history index\n");
-            return NULL;
-        }
+        fprintf(stderr, "Invalid history index\n");
+        return NULL;
     }
 }
 
@@ -374,11 +368,9 @@ void execute(cmdLine *pCmdLine)
     int child_pid;
     char *curr_command, *arg = pCmdLine->arguments[0];
 
-    if (history_command(pCmdLine))
-        return;
     if (arg[0] == '!') // Should retrieve history command
     {
-        int n = arg[1] == '!' ? 0 : atoi(arg + 1);
+        int n = arg[1] == '!' ? -1 : atoi(arg + 1);
         freeCmdLines(pCmdLine); // Not a process
         if (!(pCmdLine = history_retrieve(n)))
             return;
@@ -390,18 +382,12 @@ void execute(cmdLine *pCmdLine)
     }
 
     if (special_commands_process(pCmdLine))
-    {
-        add_to_history(get_command(pCmdLine));
-        freeCmdLines(pCmdLine); // Not a process
         return;
-    }
 
     if (pCmdLine->next)
         pipe_process(pCmdLine, pCmdLine->next);
     else
     {
-        add_to_history(get_command(pCmdLine));
-
         child_pid = fork();
         switch (child_pid)
         {
@@ -430,7 +416,7 @@ void execute(cmdLine *pCmdLine)
 
 int main(int argc, char **argv)
 {
-    char line[LINE_SIZE], curr_dir[PATH_MAX];
+    char *line, curr_dir[PATH_MAX];
     cmdLine *pCmdLine;
 
     for (int i = 0; i < argc; i++)
@@ -443,10 +429,14 @@ int main(int argc, char **argv)
         getcwd(curr_dir, PATH_MAX);
         printf("%s : ", curr_dir);
 
+        line = malloc(LINE_SIZE);
+
         // Parse command
         fgets(line, LINE_SIZE, stdin);
         if (!(pCmdLine = parseCmdLines(line)))
             continue;
+
+        add_to_history(line);
 
         // Process command
         execute(pCmdLine);
