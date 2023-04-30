@@ -12,14 +12,13 @@ extern int system_call();
 
 int main(int argc, char *argv[], char *envp[])
 {
-    int i = 0;
+    int i;
     char *arg;
-
-    while (i < argc)
+    for (i = 0; i < argc; i++)
     {
         arg = argv[i];
         system_call(SYS_WRITE, STDOUT, arg, strlen(arg));
-        i++;
+        system_call(SYS_WRITE, STDOUT, " ", 1);
     }
 
     return 0;

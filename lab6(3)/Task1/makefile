@@ -4,7 +4,7 @@ start: start.o util.o
 	ld -m elf_i386 start.o util.o -o start
 
 util.o:
-	gcc -m32 -g -c util.c -o util.o
+	gcc -m32 -Wall -ansi -g -c -nostdlib -fno-stack-protector util.c -o util.o
 	
 start.o:
 	nasm -f elf32 start.s -o start.o
