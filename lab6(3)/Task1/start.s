@@ -1,8 +1,4 @@
 section .data
-    newline db 10, 0 ; define new line character
-    lower_z db 'z', 0
-    upper_z db 'Z', 0
-    buffer  db 1
     WRITE EQU 4
     READ EQU 3
     STDIN EQU 0
@@ -11,6 +7,8 @@ section .data
     infile EQU STDIN
     outfile EQU STDOUT
     CHARLEN EQU 1
+    newline db 10, 0
+    buffer  db CHARLEN
 
 
 section .text
@@ -57,29 +55,34 @@ system_call:
 encode:
     push    ebp             ; Save caller state
     mov     ebp, esp
-    sub     esp, 4          ; Leave space for local var on stack
-    pushad                  ; Save some more caller state
+    push    ebx
     
-    ; Handle input
-    mov     eax, [ebp+8]    ; Get the input character from the stack
-    add     eax, 1          ; Increment character
-    cmp     eax, lower_z
-    jle     encode2
-    sub     eax, 26
+    mov     bl, [ebp+8]     ; Get the input character from the stack
+    cmp     bl, 'a'         ; check if the character is a lowercase letter
+    jb      not_a_to_z
+    cmp     bl, 'z'
+    ja      not_a_to_z
+    add     bl, 1
+    cmp     bl, 'z' + 1
+    jne     encode_done
+    mov     bl, 'a'
     jmp     encode_done
-encode2:
-    cmp     eax, upper_z
-    jle     encode_done
-    sub     eax, 26
+not_a_to_z:
+    cmp     bl, 'A'         ; check if the character is a lowercase letter
+    jb      encode_done
+    cmp     bl, 'Z'
+    ja      encode_done
+    add     bl, 1
+    cmp     bl, 'Z' + 1
+    jne     encode_done
+    mov     bl, 'A'
 encode_done:
-    popad                   ; Restore caller state (registers)
-    mov     eax, [ebp-4]    ; place returned value where caller can see it
-    add     esp, 4          ; Restore caller state
+    mov     al, bl          ; place returned value where caller can see it
+    pop     ebx
     pop     ebp             ; Restore caller state
     ret                     ; Back to caller
 
 main:
-    ; Prolog
     push    ebp             ; Save caller state
     mov     ebp, esp
     sub     esp, 4          ; Leave space for local var on stack
@@ -89,9 +92,8 @@ main:
     call    debug_loop
     call    encode_input
 
-    ; Epilog
     popad                   ; Restore caller state (registers)
-    mov     eax, 1    ; place returned value where caller can see it
+    mov     eax, 1          ; place returned value where caller can see it
     add     esp, 4          ; Restore caller state
     pop     ebp             ; Restore caller state
     ret                     ; Back to caller
@@ -105,7 +107,7 @@ debug_loop:
     push    dword [esi]
     call    strlen
     add     esp, 4
-    push    eax               ; Argument length
+    push    eax              ; Argument length
     push    dword [esi]
     push    STDERR
     push    WRITE
@@ -129,6 +131,7 @@ debug_end:
 encode_input:
     push    ebp             ; Save caller state
     mov     ebp, esp
+    pushad                  ; Save some more caller state
 
 io_loop:
     ; Read a character from input
@@ -140,9 +143,16 @@ io_loop:
     add     esp, 16
 
     ; Check if reached EOF
-    cmp     byte [buffer], 0
+    cmp     eax, 0
     je      end_io_loop
 
+    ; Encode character
+    push    dword [buffer]
+    call    encode
+    add     esp, 4
+    mov     [buffer], al
+
+    ; Print encoded character to output
     push    CHARLEN
     push    buffer
     push    outfile
@@ -150,20 +160,9 @@ io_loop:
     call    system_call
     add     esp, 16
 
-    
-
-    ; ; Encode character
-    ; call    encode
-
-    ; ; Print encoded character to output
-    ; push    CHARLEN
-    ; push    esp
-    ; push    outfile
-    ; push    WRITE
-    ; call    system_call
-    ; add     esp, 16
-
     jmp io_loop
+
 end_io_loop:
+    popad                   ; Restore caller state (registers)
     pop     ebp             ; Restore caller state
     ret                     ; Back to caller
