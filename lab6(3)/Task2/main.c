@@ -26,6 +26,8 @@ struct linux_dirent
 
 int main(int argc, char *argv[])
 {
+    code_start("mypipe");
+
     int fd, res, pos = 0;
     char buffer[BUFSIZE];
     struct linux_dirent *d;
@@ -56,8 +58,6 @@ int main(int argc, char *argv[])
     }
 
     system_call(SYS_CLOSE, fd);
-
-    code_start("file2infect");
 
     return 0;
 }

