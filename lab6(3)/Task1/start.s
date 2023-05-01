@@ -1,7 +1,8 @@
 section .data
-    OPEN EQU 5
-    WRITE EQU 4
     READ EQU 3
+    WRITE EQU 4
+    OPEN EQU 5
+    CLOSE EQU 6
     STDIN EQU 0
     STDOUT EQU 1
     STDERR EQU 2
@@ -53,37 +54,6 @@ system_call:
     add     esp, 4          ; Restore caller state
     pop     ebp             ; Restore caller state
     ret                     ; Back to caller
-
-encode:
-    push    ebp             ; Save caller state
-    mov     ebp, esp
-    push    ebx
-    
-    mov     bl, [ebp+8]     ; Get the input character from the stack
-    cmp     bl, 'a'         ; check if the character is a lowercase letter
-    jb      not_a_to_z
-    cmp     bl, 'z'
-    ja      not_a_to_z
-    add     bl, 1
-    cmp     bl, 'z' + 1
-    jne     encode_done
-    mov     bl, 'a'
-    jmp     encode_done
-not_a_to_z:
-    cmp     bl, 'A'         ; check if the character is a uppercase letter
-    jb      encode_done
-    cmp     bl, 'Z'
-    ja      encode_done
-    add     bl, 1
-    cmp     bl, 'Z' + 1
-    jne     encode_done
-    mov     bl, 'A'
-encode_done:
-    mov     al, bl          ; place returned value where caller can see it
-    pop     ebx
-    pop     ebp             ; Restore caller state
-    ret                     ; Back to caller
-
 main:
     push    ebp             ; Save caller state
     mov     ebp, esp
@@ -93,6 +63,16 @@ main:
     call    handle_args
     call    encode_input
 
+    ; Close infile and outfile
+    push    dword[infile]
+    push    CLOSE
+    call    system_call
+    add     esp, 8
+    push    dword[outfile]
+    push    CLOSE
+    call    system_call
+    add     esp, 8
+    
     popad                   ; Restore caller state (registers)
     mov     eax, 1          ; place returned value where caller can see it
     add     esp, 4          ; Restore caller state
@@ -170,12 +150,39 @@ args_end:
     popad                   ; Restore caller state (registers)
     pop     ebp             ; Restore caller state
     ret                     ; Back to caller
-
+encode:
+    push    ebp             ; Save caller state
+    mov     ebp, esp
+    push    ebx
+    
+    mov     bl, [ebp+8]     ; Get the input character from the stack
+    cmp     bl, 'a'         ; check if the character is a lowercase letter
+    jb      not_a_to_z
+    cmp     bl, 'z'
+    ja      not_a_to_z
+    add     bl, 1
+    cmp     bl, 'z' + 1
+    jne     encode_done
+    mov     bl, 'a'
+    jmp     encode_done
+not_a_to_z:
+    cmp     bl, 'A'         ; check if the character is a uppercase letter
+    jb      encode_done
+    cmp     bl, 'Z'
+    ja      encode_done
+    add     bl, 1
+    cmp     bl, 'Z' + 1
+    jne     encode_done
+    mov     bl, 'A'
+encode_done:
+    mov     al, bl          ; place returned value where caller can see it
+    pop     ebx
+    pop     ebp             ; Restore caller state
+    ret                     ; Back to caller
 encode_input:
     push    ebp             ; Save caller state
     mov     ebp, esp
     pushad                  ; Save some more caller state
-
 io_loop:
     ; Read a character from input
     push    CHARLEN
@@ -204,7 +211,6 @@ io_loop:
     add     esp, 16
 
     jmp io_loop
-
 end_io_loop:
     popad                   ; Restore caller state (registers)
     pop     ebp             ; Restore caller state
