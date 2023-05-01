@@ -1,4 +1,5 @@
 section .data
+    OPEN EQU 5
     WRITE EQU 4
     READ EQU 3
     STDIN EQU 0
@@ -101,6 +102,7 @@ handle_args:
     push    ebp             ; Save caller state
     mov     ebp, esp
     pushad                  ; Save some more caller state
+
     mov     ebx, esi
     add     ebx, 4          ; Start from argv[1]
 args_loop:
@@ -127,9 +129,17 @@ args_loop:
     call    system_call
     add     esp, 16
 
-  ; ; Check if the argument is in the form "-i{file}" or "-o{file}"
-    ; cmp     dword [ebx], '-'
-    ; je     end_iteration
+  ; Check if the argument is in the form "-i{file}" or "-o{file}"
+    cmp     dword [ebx], '-'
+    je     end_iteration
+
+    ; TEST
+    push    2
+    push    dword [ebx]
+    push    STDERR
+    push    WRITE
+    call    system_call
+    add     esp, 16
 
     ; inc     ebx
     ; cmp     cl, 'i'
@@ -160,7 +170,7 @@ extract_outfile:
     ; mov     dword [outfile], eax
     ; jmp     end_iteration
 
-    ; Update registers
+end_iteration:
     add     ebx, 4
     jmp     args_loop
 args_end:
