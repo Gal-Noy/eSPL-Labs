@@ -5,12 +5,13 @@ section .data
     STDIN EQU 0
     STDOUT EQU 1
     STDERR EQU 2
-    infile EQU STDIN
-    outfile EQU STDOUT
     CHARLEN EQU 1
+    PERMISSIONS EQU 0644
+    O_FLAGS EQU 0x101
+    infile dd STDIN
+    outfile dd STDOUT
     newline db 10, 0
     buffer  db CHARLEN
-
 
 section .text
     global _start
@@ -130,48 +131,38 @@ args_loop:
     add     esp, 16
 
   ; Check if the argument is in the form "-i{file}" or "-o{file}"
-    mov     edx, dword [ebx]
+    mov     edx, dword [ebx]    ; Access the arg
+    mov     al, byte [edx]      ; Check first char (if '-')
+    cmp     al, '-'
+    jne     end_iteration
+
+    inc     edx                 ; Check first char (if 'i' or 'o')
     mov     al, byte [edx]
-    cmp     al, 45
-    je     end_iteration
-
-    ; TEST
-    push    2
-    push    dword [ebx]
-    push    STDERR
-    push    WRITE
-    call    system_call
-    add     esp, 16
-
-    ; inc     ebx
-    ; cmp     cl, 'i'
-    ; je      extract_infile
-    ; cmp     byte [ebx], 'o'
-    ; je      extract_outfile
-    ; jmp     end_iteration
+    cmp     al, 'i'
+    je      extract_infile
+    cmp     al, 'o'
+    je      extract_outfile
+    jmp     end_iteration
 
 extract_infile:
-    ; inc     ebx             ; Achieve file name
-    ; push    dword 0
-    ; push    dword 0
-    ; push    dword [ebx]
-    ; push    OPEN
-    ; call    system_call
-    ; add     esp, 16
-    ; mov     dword [infile], eax
-    ; jmp     end_iteration
+    inc     edx                  ; Achieve file name
+    push    PERMISSIONS
+    push    0
+    push    edx
+    push    OPEN
+    call    system_call
+    add     esp, 16
+    mov     dword [infile], eax  ; Update infile
+    jmp     end_iteration
 extract_outfile:
-    ; inc     ebx              ; Achieve file name
-    ; push    dword 0644
-    ; push    dword 64
-    ; push    dword 1
-    ; push    dword ebx
-    ; push    OPEN
-    ; call    system_call
-    ; add     esp, 20
-    ; mov     dword [outfile], eax
-    ; jmp     end_iteration
-
+    inc     edx                  ; Achieve file name
+    push    PERMISSIONS
+    push    O_FLAGS
+    push    edx
+    push    OPEN
+    call    system_call
+    add     esp, 16
+    mov     dword [outfile], eax ; Update outfile
 end_iteration:
     add     ebx, 4
     jmp     args_loop
@@ -189,7 +180,7 @@ io_loop:
     ; Read a character from input
     push    CHARLEN
     push    buffer
-    push    infile
+    push    dword [infile]
     push    READ
     call    system_call
     add     esp, 16
@@ -207,7 +198,7 @@ io_loop:
     ; Print encoded character to output
     push    CHARLEN
     push    buffer
-    push    outfile
+    push    dword [outfile]
     push    WRITE
     call    system_call
     add     esp, 16
