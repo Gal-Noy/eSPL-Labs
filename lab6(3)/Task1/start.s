@@ -130,7 +130,9 @@ args_loop:
     add     esp, 16
 
   ; Check if the argument is in the form "-i{file}" or "-o{file}"
-    cmp     dword [ebx], '-'
+    mov     edx, dword [ebx]
+    mov     al, byte [edx]
+    cmp     al, 45
     je     end_iteration
 
     ; TEST
