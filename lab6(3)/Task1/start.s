@@ -68,7 +68,7 @@ encode:
     mov     bl, 'a'
     jmp     encode_done
 not_a_to_z:
-    cmp     bl, 'A'         ; check if the character is a lowercase letter
+    cmp     bl, 'A'         ; check if the character is a uppercase letter
     jb      encode_done
     cmp     bl, 'Z'
     ja      encode_done
@@ -88,8 +88,7 @@ main:
     sub     esp, 4          ; Leave space for local var on stack
     pushad                  ; Save some more caller state
 
-    add     esi, 4          ; Start from argv[1]
-    call    debug_loop
+    call    handle_args
     call    encode_input
 
     popad                   ; Restore caller state (registers)
@@ -98,17 +97,23 @@ main:
     pop     ebp             ; Restore caller state
     ret                     ; Back to caller
 
-debug_loop:
+handle_args:
+    push    ebp             ; Save caller state
+    mov     ebp, esp
+    pushad                  ; Save some more caller state
+    mov     ebx, esi
+    add     ebx, 4          ; Start from argv[1]
+args_loop:
     ; Check if reached end of argv
-    cmp     dword [esi], 0
-    jge     debug_end
+    cmp     dword [ebx], 0
+    jge     args_end
 
     ; Print next argument
-    push    dword [esi]
+    push    dword [ebx]
     call    strlen
     add     esp, 4
     push    eax              ; Argument length
-    push    dword [esi]
+    push    dword [ebx]
     push    STDERR
     push    WRITE
     call    system_call
@@ -122,11 +127,46 @@ debug_loop:
     call    system_call
     add     esp, 16
 
+  ; ; Check if the argument is in the form "-i{file}" or "-o{file}"
+    ; cmp     dword [ebx], '-'
+    ; je     end_iteration
+
+    ; inc     ebx
+    ; cmp     cl, 'i'
+    ; je      extract_infile
+    ; cmp     byte [ebx], 'o'
+    ; je      extract_outfile
+    ; jmp     end_iteration
+
+extract_infile:
+    ; inc     ebx             ; Achieve file name
+    ; push    dword 0
+    ; push    dword 0
+    ; push    dword [ebx]
+    ; push    OPEN
+    ; call    system_call
+    ; add     esp, 16
+    ; mov     dword [infile], eax
+    ; jmp     end_iteration
+extract_outfile:
+    ; inc     ebx              ; Achieve file name
+    ; push    dword 0644
+    ; push    dword 64
+    ; push    dword 1
+    ; push    dword ebx
+    ; push    OPEN
+    ; call    system_call
+    ; add     esp, 20
+    ; mov     dword [outfile], eax
+    ; jmp     end_iteration
+
     ; Update registers
-    add     esi, 4
-    jmp      debug_loop
-debug_end:
-    ret
+    add     ebx, 4
+    jmp     args_loop
+args_end:
+    popad                   ; Restore caller state (registers)
+    pop     ebp             ; Restore caller state
+    ret                     ; Back to caller
 
 encode_input:
     push    ebp             ; Save caller state
