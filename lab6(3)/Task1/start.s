@@ -63,15 +63,13 @@ main:
     call    encode_input
 
     ; Close infile and outfile
-    push    dword[infile]
-    push    CLOSE
-    call    system_call
-    add     esp, 8
-    push    dword[outfile]
-    push    CLOSE
-    call    system_call
-    add     esp, 8
-    
+    mov     eax, CLOSE
+    mov     ebx, dword[infile]
+    int     0x80
+    mov     eax, CLOSE
+    mov     ebx, dword[outfile]
+    int     0x80
+
     popad                   ; Restore caller state (registers)
     mov     eax, 1          ; place returned value where caller can see it
     add     esp, 4          ; Restore caller state
@@ -178,12 +176,11 @@ encode_input:
     pushad                  ; Save some more caller state
 io_loop:
     ; Read a character from input
-    push    CHARLEN
-    push    buffer
-    push    dword [infile]
-    push    READ
-    call    system_call
-    add     esp, 16
+    mov     eax, READ
+    mov     ebx, dword [infile]
+    mov     ecx, buffer
+    mov     edx, CHARLEN
+    int     0x80
 
     ; Check if reached EOF
     cmp     eax, 0
@@ -196,12 +193,11 @@ io_loop:
     mov     [buffer], al
 
     ; Print encoded character to output
-    push    CHARLEN
-    push    buffer
-    push    dword [outfile]
-    push    WRITE
-    call    system_call
-    add     esp, 16
+    mov     eax, WRITE
+    mov     ebx, dword [outfile]
+    mov     ecx, buffer
+    mov     edx, CHARLEN
+    int     0x80
 
     jmp io_loop
 end_io_loop:

