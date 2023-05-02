@@ -1,13 +1,13 @@
 section .data
     MSG db "Hello, Infected File", 0
     outfile dd 1
-    MSG_LEN EQU $-MSG
+    MSG_LEN EQU 20
     STDOUT EQU 1
     WRITE EQU 4
     OPEN EQU 5
     CLOSE EQU 6
     PERMISSIONS EQU 0777
-    O_FLAGS EQU 1026
+    O_FLAGS EQU 1024
 
 section .text
 global _start

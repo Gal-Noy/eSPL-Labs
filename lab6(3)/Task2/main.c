@@ -53,6 +53,7 @@ int main(int argc, char *argv[])
             prefix = argv[i] + 2;
             break;
         }
+
     for (pos = 0; pos < res;)
     {
         d = (struct linux_dirent *)(buffer + pos);
