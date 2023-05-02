@@ -8,7 +8,6 @@ section .data
     STDERR EQU 2
     CHARLEN EQU 1
     PERMISSIONS EQU 0644
-    O_FLAGS EQU 0x101
     infile dd STDIN
     outfile dd STDOUT
     newline db 10, 0
@@ -84,40 +83,38 @@ handle_args:
     mov     ebp, esp
     pushad                  ; Save some more caller state
 
-    mov     ebx, esi
-    add     ebx, 4          ; Start from argv[1]
+    add     esi, 4          ; Start from argv[1]
 args_loop:
     ; Check if reached end of argv
-    cmp     dword [ebx], 0
+    cmp     dword [esi], 0
     jge     args_end
 
     ; Print next argument
-    push    dword [ebx]
-    call    strlen
+    push    dword [esi]
+    call    strlen           ; Get argument length (=eax)
     add     esp, 4
-    push    eax              ; Argument length
-    push    dword [ebx]
-    push    STDERR
-    push    WRITE
-    call    system_call
-    add     esp, 16
 
+    mov     edx, eax
+    mov     ecx, dword [esi]
+    mov     ebx, STDERR
+    mov     eax, WRITE
+    int     0x80
+    
     ; Print new line
-    push    CHARLEN
-    push    newline
-    push    STDERR
-    push    WRITE
-    call    system_call
-    add     esp, 16
+    mov     eax, WRITE
+    mov     ebx, STDERR
+    mov     ecx, newline
+    mov     edx, CHARLEN
+    int     0x80
 
   ; Check if the argument is in the form "-i{file}" or "-o{file}"
-    mov     edx, dword [ebx]    ; Access the arg
-    mov     al, byte [edx]      ; Check first char (if '-')
+    mov     ebx, dword [esi]    ; Access the arg
+    mov     al, byte [ebx]      ; Check first char (if '-')
     cmp     al, '-'
     jne     end_iteration
 
-    inc     edx                 ; Check first char (if 'i' or 'o')
-    mov     al, byte [edx]
+    inc     ebx                 ; Check first char (if 'i' or 'o')
+    mov     al, byte [ebx]
     cmp     al, 'i'
     je      extract_infile
     cmp     al, 'o'
@@ -125,26 +122,22 @@ args_loop:
     jmp     end_iteration
 
 extract_infile:
-    inc     edx                  ; Achieve file name
-    push    PERMISSIONS
-    push    0
-    push    edx
-    push    OPEN
-    call    system_call
-    add     esp, 16
-    mov     dword [infile], eax  ; Update infile
+    inc     ebx                  ; Achieve file name
+    mov     eax, OPEN
+    mov     ecx, 0
+    mov     edx, PERMISSIONS
+    int     0x80
+    mov     dword [infile], eax ; Update outfile
     jmp     end_iteration
 extract_outfile:
-    inc     edx                  ; Achieve file name
-    push    PERMISSIONS
-    push    O_FLAGS
-    push    edx
-    push    OPEN
-    call    system_call
-    add     esp, 16
+    inc     ebx                  ; Achieve file name
+    mov     eax, OPEN
+    mov     ecx, 1
+    mov     edx, PERMISSIONS
+    int     0x80
     mov     dword [outfile], eax ; Update outfile
 end_iteration:
-    add     ebx, 4
+    add     esi, 4               ; Move to next arg
     jmp     args_loop
 args_end:
     popad                   ; Restore caller state (registers)

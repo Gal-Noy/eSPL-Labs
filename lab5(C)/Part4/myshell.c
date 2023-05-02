@@ -10,7 +10,7 @@
 #include "LineParser.h"
 
 #define LINE_SIZE 2048
-#define HISTLEN 3
+#define HISTLEN 20
 #define TERMINATED -1
 #define RUNNING 1
 #define SUSPENDED 0
