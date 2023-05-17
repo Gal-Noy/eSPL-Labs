@@ -1,8 +1,8 @@
 section .rodata
-    x_struct: db 3
-    x_num: db 2, 3, 4
-    y_struct: db 3
-    y_num: db 3, 4, 5
+    x_struct: db 5
+    x_num: db 0xaa, 1,2,0x44,0x4f
+    y_struct: db 6
+    y_num: db 0xaa, 1,2,3,0x44,0x4f
 
 segment .text
 global main

@@ -46,7 +46,6 @@ chars_loop:
     jmp     chars_loop
 
 loop_end:
-f:
     popad
     pop     ebp
     ret                     ; Back to caller
@@ -250,6 +249,7 @@ sum_loop:
     ; Sum digits
     mov     dl, byte [ebx]
     adc     dl, byte [ecx]
+    adc     byte [eax+1], 0
     add     byte [eax], dl
 
     ; Decrement loop counter and move pointers to next digit
@@ -261,18 +261,19 @@ sum_loop:
     jmp     sum_loop
 
 handle_longer:
-    ; pop     dword esi
+    cmp     esi, 0              ; Finished with small multi?
+    je      end_sum
 
-    ; mov     dl, byte [ebx]
-    ; adc     dl, 0
-    ; mov     byte [eax], dl
+    mov     dl, byte [ebx]
+    adc     dl, 0
+    mov     byte [eax], dl
 
-    ; ; Decrement loop counter and move pointers to next digit
-    ; dec     esi
-    ; inc     eax
-    ; inc     ebx
+    ; Decrement loop counter and move pointers to next digit
+    dec     esi
+    inc     eax
+    inc     ebx
 
-    ; jmp     handle_longer
+    jmp     handle_longer
 
 end_sum:
     pop     eax                 ; Achieve the sum multi
