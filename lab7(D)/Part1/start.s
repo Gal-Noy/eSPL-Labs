@@ -1,7 +1,6 @@
 section .data
     BUFSIZE EQU 600
     format: db "%02hhx", 0
-    dformat: db "%d", 10, 0
 section .bss
     multi:  resb 2
     buffer: resb BUFSIZE
@@ -14,12 +13,13 @@ section .text
 print_multi:
     push    ebp             ; Save caller state
     mov     ebp, esp
+    pushad
 
     mov     edi, [ebp+8]    ; edi = p
     mov     esi, [edi]      ; esi = size
     add     edi, 4
     
-    mov     ebx, edi        ; pointer to num
+    mov     ebx, edi        ; ebx = num
     add     ebx, esi
     dec     ebx
 
@@ -39,22 +39,33 @@ chars_loop:
     jmp     chars_loop
 
 loop_end:
-    mov     esp, ebp        ; Restore caller state (registers)
-    pop     ebp             ; Restore caller state
+    popad
+    pop     ebp
     ret                     ; Back to caller
 
 getmulti:
     push    ebp             ; Save caller state
     mov     ebp, esp
     pushad
+    
+    ; read a line of input from stdin using fgets
+    push    dword [stdin]   ; stream
+    push    dword BUFSIZE
+    push    dword buffer
+    call    fgets
+    add     esp, 12
 
-    ; ; read a line of input from stdin using fgets
-    ; push    dword BUFSIZE
-    ; push    dword buffer
-    ; push    dword stdin
-    ; call    fgets
-    ; add     esp, 12
+    ; Initialize pointers
+    mov     edi, multi      ; edi = multi
+    mov     esi, [edi]      ; esi = size
+    add     edi, 4
+    mov     ebx, edi        ; ebx = num
+    mov     edx, buffer
 
-    popad                   ; Restore caller state (registers)
-    pop     ebp             ; Restore caller state
+buffer_loop:
+    mov     ecx, 
+
+
+    popad
+    pop     ebp
     ret                     ; Back to caller
