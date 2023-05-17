@@ -198,14 +198,13 @@ add_multi:
     ; Find multi with larger size
     push    dword [ebp+8]
     push    dword [ebp+12]
-    call get_max_min
+    call    get_max_min
     add     esp, 8
 
     mov     ecx, ebx    
     mov     ebx, eax
 
     movzx   edx, byte [ebx]     ; Get the larger size
-    inc_size:
     inc     edx
     mov     byte [edi], dl      ; Save buffer size
 
@@ -216,50 +215,43 @@ add_multi:
     add     esp, 4
     pop     ecx                 ; Restore the value of ecx
 
-    mov     dword [edi+1], eax  ; Store pointer in memory after size byte
+    mov     dword [edi+1], eax  ; Store pointer to nums of multi
     mov     edx, edi            ; Load pointer to new multi into edx
 
-    ; Move pointers of multis to lsb
-    movzx   eax, byte [ebx]
-    add     ebx, eax
-    movzx   eax, byte [ecx]
-    add     ecx, eax
-    movzx   eax, byte [edx]
-    add     edx, eax
-
-    movzx   esi, byte [edi]     ; Save sum size
+    movzx   esi, byte [ecx]     ; Save sum multi size
+    ; Move pointers to start of nums
+    inc     ebx
+    inc     ecx
+    inc     edx
+    CLC                         ; Clear carry flag
 
 sum_loop:
-    ; Check if done
     cmp     esi, 0
-    jz      end_sum
+    jz      handle_longer
 
     ; Sum each corresponding digit
     mov     al, byte [ebx]
-    add     al, byte [ecx]
-    f:
-    add     al, byte [edx]      ; Add carry
+    adc     al, byte [ecx]
     add     byte [edx], al
 
-    ; Check if carry needs to be propagated
-    cmp     byte [edx], 16
-    jb      next_digit
-    mov     al, byte [edx]
-    sub     al, 16
-    mov     byte [edx], al
-    inc     byte [edx-1]
-
-next_digit:
     ; Decrement loop counter and move pointers to next digit
     dec     esi
-    dec     ebx
-    dec     ecx
-    dec     edx
+    inc     ebx
+    inc     ecx
+    inc     edx
 
     jmp     sum_loop
 
+handle_longer:
+    mov     al, byte [ebx]
+    adc     al, 0
+    mov     byte [edx], al
+    inc     ebx
+    inc     edx
+
+    jmp     handle_longer
+
 end_sum:
-    
     ; Print the sum multi
     push    dword edi
     call    print_multi
