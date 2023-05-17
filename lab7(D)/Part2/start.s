@@ -1,3 +1,5 @@
+	
+אני
 section .data
     BUFSIZE     EQU 600
     format:     db "%02hhx", 0
@@ -269,3 +271,5 @@ end_sum:
     mov     eax, [ebp-4]        ; place returned value where caller can see it
     pop     ebp                 ; Restore caller state
     ret                         ; Back to caller
+
+	
