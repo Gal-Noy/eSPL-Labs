@@ -14,32 +14,32 @@ section .text
 print_multi:
     push    ebp             ; Save caller state
     mov     ebp, esp
+    pushad                  ; Save some more caller state
 
-    mov     edi, [ebp+8]    ; edi = p
-    mov     esi, [edi]      ; esi = size
-    add     edi, 4
-    
-    mov     ebx, edi        ; pointer to num
-    add     ebx, esi
-    dec     ebx
-
+    mov     ebx, [ebp+8]    ; ebx = p
+    mov     esi, [ebx]      ; esi = size
+    add     ebx, 4
 chars_loop:
     ; Check if printed all chars
     cmp     esi, 0
     jz      loop_end
 
-    push    dword [ebx]
+    ; Print next char
+    xor     ecx, ecx
+    mov     cl, [ebx]
+
+    push    dword ecx
     push    dword format
     call    printf
     add     esp, 8
 
     ; Move to next index
     dec     esi
-    dec     ebx
+    inc     ebx
     jmp     chars_loop
 
 loop_end:
-    mov     esp, ebp        ; Restore caller state (registers)
+    popad                   ; Restore caller state (registers)
     pop     ebp             ; Restore caller state
     ret                     ; Back to caller
 
