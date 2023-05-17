@@ -1,5 +1,3 @@
-	
-אני
 section .data
     BUFSIZE     EQU 600
     format:     db "%02hhx", 0
@@ -7,7 +5,6 @@ section .data
 
 section .bss
     multi:      resb 1+BUFSIZE
-    sum_multi:  resb 1+BUFSIZE
     buffer:     resb BUFSIZE
 
 section .text
@@ -21,13 +18,20 @@ print_multi:
     push    ebp             ; Save caller state
     mov     ebp, esp
     pushad
-
     mov     edi, [ebp+8]        ; edi = p
     movzx   ebx, byte [edi]     ; ebx = size
     add     edi, ebx            ; edi = last num
 
+remove_leading_zeros:
+    cmp     byte [edi], 0
+    jne     chars_loop
+    dec     ebx
+    dec     edi
+    jmp remove_leading_zeros
+
 chars_loop:
     ; Check if printed all chars
+
     cmp     ebx, 0
     jz      loop_end
 
@@ -42,6 +46,7 @@ chars_loop:
     jmp     chars_loop
 
 loop_end:
+f:
     popad
     pop     ebp
     ret                     ; Back to caller
@@ -182,9 +187,8 @@ get_max_min:
 add_multi:
     push    ebp                 ; Save caller state
     mov     ebp, esp
+    sub     esp, 4
     pushad                      ; Save some more caller state
-
-    mov     edi, sum_multi      ; Initialize a pointer to the sum multi
 
     ; Print multis with \n characters
     push    dword [ebp+8]
@@ -206,43 +210,50 @@ add_multi:
     call    get_max_min
     add     esp, 8
 
-    movzx   ecx, byte [eax]     ; Get the larger size
-    inc     ecx
-    mov     byte [edi], dl      ; Save buffer size
+    movzx   edx, byte [eax]     ; Get the larger size
+    inc     edx                 ; edx = sum multi size
 
-    mov     edx, eax
-    push    dword edx           ; Save the value of eax
+    mov     ecx, ebx            ; ecx = smaller multi
+    mov     ebx, eax            ; ebx = larger multi
 
-    ; Allocate memory for num array
+    push    ecx
+    push    edx
+
+    ; Allocate memory for sum multi
+    mov     edi, edx            ; edi = edx
     push    edi
     call    malloc
     add     esp, 4
-    mov     dword [edi+1], eax   ; Store pointer to nums of multi
-    mov     ecx, edi             ; Load pointer to new multi into ecx
 
-    pop     dword edx            ; Restore the value of eax
-    mov     eax, edx
+    pop     edx
+    pop     ecx
 
-    movzx   esi, byte [ebx]     ; Save small multi size
-    push    dword esi
+    ; Save buffer size
+    mov     byte [eax], dl      ; Save buffer size
+    push    dword eax           ; Push sum multi
 
-    ; Move pointers to start of nums
-    inc     eax
-    inc     ebx
-    inc     ecx
+    movzx   edi, byte [ecx]     ; Save small multi size
+    movzx   esi, byte [ebx]     ; Save large multi size
+    sub     esi, edi            ; esi = remainder
+
+    ; Move pointers to start of buffers
+    inc     eax                 ; Sum multi
+    inc     ebx                 ; Large multi
+    inc     ecx                 ; Small multi
+    xor     edx, edx            ; Clear edx
     CLC                         ; Clear carry flag
 
 sum_loop:
-    cmp     esi, 0
-    jz      handle_longer
+    cmp     edi, 0              ; Finished with small multi?
+    je      handle_longer
 
-    ; Sum each corresponding digit
-    mov     dl, byte [eax]
-    adc     dl, byte [ebx]
-    add     byte [ecx], dl
+    ; Sum digits
+    mov     dl, byte [ebx]
+    adc     dl, byte [ecx]
+    add     byte [eax], dl
 
     ; Decrement loop counter and move pointers to next digit
-    dec     esi
+    dec     edi
     inc     eax
     inc     ebx
     inc     ecx
@@ -250,25 +261,31 @@ sum_loop:
     jmp     sum_loop
 
 handle_longer:
-    pop     dword esi
-f:
-    mov     al, byte [ebx]
-    adc     al, 0
-    mov     byte [edx], al
-    inc     ebx
-    inc     edx
+    ; pop     dword esi
 
-    jmp     handle_longer
+    ; mov     dl, byte [ebx]
+    ; adc     dl, 0
+    ; mov     byte [eax], dl
+
+    ; ; Decrement loop counter and move pointers to next digit
+    ; dec     esi
+    ; inc     eax
+    ; inc     ebx
+
+    ; jmp     handle_longer
 
 end_sum:
+    pop     eax                 ; Achieve the sum multi
+
     ; Print the sum multi
-    push    dword edi
+    push    dword eax
     call    print_multi
     add     esp, 4
 
-    mov     [ebp-4], edi        ; Save returned value...
+    mov     [ebp-4], eax        ; Save returned value...
     popad                       ; Restore caller state (registers)
     mov     eax, [ebp-4]        ; place returned value where caller can see it
+    add     esp, 4
     pop     ebp                 ; Restore caller state
     ret                         ; Back to caller
 
