@@ -1,5 +1,5 @@
 section .rodata
-    x_struct: dd 5
+    x_struct: db 5
     x_num: db 0xaa,1,2,0x44,0x4f   
 
 segment .text
