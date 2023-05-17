@@ -42,8 +42,9 @@ loop_end:
 getmulti:
     push    ebp             ; Save caller state
     mov     ebp, esp
-    pushad
-    
+    sub     esp, 4          ; Leave space for local var on stack
+    pushad                  ; Save some more caller state
+
     ; read a line of input from stdin using fgets
     push    dword [stdin]   ; stream
     push    dword BUFSIZE
@@ -70,34 +71,77 @@ buffer_loop:
 
     ; Store the result in the multi struct
     mov     edx, [eax]
-    mov     word [ebx], dx      ; Store the pair of digits
-    add     ebx, 2              
+    mov     byte [ebx], dl      ; Store the pair of digits
+    inc     ebx              
     inc     ecx                 ; Increment size by 1
 
-    add     esi, 2              ; Move to the next pair in the buffer
+    ; Move to the next pair in the buffer
+    add     esi, 2              
     jmp     buffer_loop
 
 end_buffer_loop:
     mov     byte [edi], cl  ; Update multi size
-f:
-    popad
-    pop     ebp
-    mov     eax, edi        ; Return the address of the multi struct
+    mov     [ebp-4], edi    ; Save returned value...
+    popad                   ; Restore caller state (registers)
+    mov     eax, [ebp-4]    ; place returned value where caller can see it
+    add     esp, 4          ; Restore caller state
+    pop     ebp             ; Restore caller state
     ret                     ; Back to caller
+
 
 pair_to_hex:
     push    ebp             ; Save caller state
     mov     ebp, esp
-    push    ebx
+    pushad    
 
-    mov     bx, word [ebp+8]
+    mov     eax, [ebp+8]
+    movzx   ebx, byte [eax] ; Get first character
+    movzx   ecx, byte [eax+1] ; Get second character
 
-    ; ; Convert the first byte to hex
-    ; mov     al, bl
-    ; shr     al, 4
-    ; call    byte_to_hex
-    ; mov     bl, al
-    mov     ax, bx
-    pop     ebx
+    ; Convert first character to nibble value
+    cmp     ebx, '0'                ; First digit is 0
+    jb      second_char
+    cmp     ebx, '9'                ; First digit is a letter
+    ja      first_char_is_alpha
+    sub     ebx, '0'                ; First digit is a number
+    jmp     get_second_nibble
+
+    first_char_is_alpha:
+    cmp     ebx, 'a'
+    jb      invalid_pair
+    cmp     ebx, 'f'
+    ja      invalid_pair
+    sub     ebx, 'a' - 10           ; Adjust for alphabetical characters
+
+    get_second_nibble:
+    ; Convert second character to nibble value
+    cmp     ecx, '9'                ; Second digit is a letter
+    ja      second_char_is_alpha
+    sub     ecx, '0'                ; Second digit is a number
+    jmp     combine_nibbles
+
+    second_char_is_alpha:
+    cmp     ecx, 'a'
+    jb      invalid_pair
+    cmp     ecx, 'f'
+    ja      invalid_pair
+    sub     ecx, 'a' - 10           ; Adjust for alphabetical characters
+
+    combine_nibbles:
+    ; Combine nibbles to form byte
+    shl     ebx, 4
+    or      ebx, ecx
+    mov     al, byte [ebx]          ; Return result in al
+
+    invalid_pair:
+    xor     eax, eax        ; Return 0 for invalid input
+    jmp     end_convert
+
+    second_char:
+    xor     eax, eax        ; Return 0 for invalid input
+    jmp     end_convert
+
+end_convert:
+    popad     
     pop     ebp
     ret                     ; Back to caller

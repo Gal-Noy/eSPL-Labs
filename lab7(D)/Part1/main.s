@@ -11,9 +11,11 @@ extern getmulti
     push    ebp                 
     mov     ebp, esp  
 
-    push    dword x_struct
+    ; push    dword x_struct
     ; call    print_multi
     call    getmulti
+    push    dword eax
+    call    print_multi
 
     mov     esp, ebp
     pop     ebp
