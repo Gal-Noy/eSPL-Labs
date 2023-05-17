@@ -70,7 +70,7 @@ buffer_loop:
     je      end_buffer_loop
 
     ; Convert the current pair of characters to hex
-    push    dword esi           
+    push    dword esi          
     call    pair_to_hex         ; Convert first two digits to hex
     add     esp, 4
 
@@ -158,19 +158,22 @@ pair_to_hex:
 get_max_min:
     push    ebp                 ; Save caller state
     mov     ebp, esp
-    
+    push    ecx
+
     mov     eax, [ebp+8]        ; First multi pointer
     mov     ebx, [ebp+12]       ; Second multi pointer
 
-    cmp     al, bl              ; Compare sizes
+    mov     cl, byte [eax]
+    cmp     cl, byte [ebx]      ; Compare sizes
     jb      len2
     jmp     mm_end
 
     len2:
+    mov     eax, [ebp+12]      
     mov     ebx, [ebp+8]        
-    mov     eax, [ebp+12]       
 
     mm_end:
+    pop ecx
     pop     ebp                 ; Restore caller state
     ret                         ; Back to caller
 
@@ -201,28 +204,30 @@ add_multi:
     call    get_max_min
     add     esp, 8
 
-    mov     ecx, ebx    
-    mov     ebx, eax
-
-    movzx   edx, byte [ebx]     ; Get the larger size
-    inc     edx
+    movzx   ecx, byte [eax]     ; Get the larger size
+    inc     ecx
     mov     byte [edi], dl      ; Save buffer size
 
-    push    ecx                 ; Save the value of ecx
+    mov     edx, eax
+    push    dword edx           ; Save the value of eax
+
     ; Allocate memory for num array
     push    edi
     call    malloc
     add     esp, 4
-    pop     ecx                 ; Restore the value of ecx
+    mov     dword [edi+1], eax   ; Store pointer to nums of multi
+    mov     ecx, edi             ; Load pointer to new multi into ecx
 
-    mov     dword [edi+1], eax  ; Store pointer to nums of multi
-    mov     edx, edi            ; Load pointer to new multi into edx
+    pop     dword edx            ; Restore the value of eax
+    mov     eax, edx
 
-    movzx   esi, byte [ecx]     ; Save sum multi size
+    movzx   esi, byte [ebx]     ; Save small multi size
+    push    dword esi
+
     ; Move pointers to start of nums
+    inc     eax
     inc     ebx
     inc     ecx
-    inc     edx
     CLC                         ; Clear carry flag
 
 sum_loop:
@@ -230,19 +235,21 @@ sum_loop:
     jz      handle_longer
 
     ; Sum each corresponding digit
-    mov     al, byte [ebx]
-    adc     al, byte [ecx]
-    add     byte [edx], al
+    mov     dl, byte [eax]
+    adc     dl, byte [ebx]
+    add     byte [ecx], dl
 
     ; Decrement loop counter and move pointers to next digit
     dec     esi
+    inc     eax
     inc     ebx
     inc     ecx
-    inc     edx
 
     jmp     sum_loop
 
 handle_longer:
+    pop     dword esi
+f:
     mov     al, byte [ebx]
     adc     al, 0
     mov     byte [edx], al
