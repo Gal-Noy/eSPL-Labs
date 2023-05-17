@@ -70,8 +70,7 @@ buffer_loop:
     add     esp, 4
 
     ; Store the result in the multi struct
-    mov     edx, [eax]
-    mov     byte [ebx], dl      ; Store the pair of digits
+    mov     byte [ebx], al      ; Store the pair of digits
     inc     ebx              
     inc     ecx                 ; Increment size by 1
 
@@ -79,7 +78,7 @@ buffer_loop:
     add     esi, 2              
     jmp     buffer_loop
 
-end_buffer_loop:
+    end_buffer_loop:
     mov     byte [edi], cl  ; Update multi size
     mov     [ebp-4], edi    ; Save returned value...
     popad                   ; Restore caller state (registers)
@@ -92,7 +91,8 @@ end_buffer_loop:
 pair_to_hex:
     push    ebp             ; Save caller state
     mov     ebp, esp
-    pushad    
+    push    ebx
+    push    ecx    
 
     mov     eax, [ebp+8]
     movzx   ebx, byte [eax] ; Get first character
@@ -115,6 +115,8 @@ pair_to_hex:
 
     get_second_nibble:
     ; Convert second character to nibble value
+    cmp     ecx, '0'                ; Second digit is 0
+    jb      invalid_pair
     cmp     ecx, '9'                ; Second digit is a letter
     ja      second_char_is_alpha
     sub     ecx, '0'                ; Second digit is a number
@@ -131,17 +133,19 @@ pair_to_hex:
     ; Combine nibbles to form byte
     shl     ebx, 4
     or      ebx, ecx
-    mov     al, byte [ebx]          ; Return result in al
+    mov     eax, ebx                ; Return result in al
+    jmp end_convert
 
     invalid_pair:
-    xor     eax, eax        ; Return 0 for invalid input
+    xor     eax, eax                ; Return 0 for invalid input
     jmp     end_convert
 
     second_char:
-    xor     eax, eax        ; Return 0 for invalid input
+    xor     eax, eax                ; Return 0 for invalid input
     jmp     end_convert
 
-end_convert:
-    popad     
+    end_convert:
+    pop     ecx
+    pop     ebx
     pop     ebp
     ret                     ; Back to caller
