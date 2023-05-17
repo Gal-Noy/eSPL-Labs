@@ -1,12 +1,15 @@
 section .data
     BUFSIZE     EQU 600
     format:     db "%02hhx", 0
+    newline:    db 10, 0
+
 section .bss
     multi:      resb 1+BUFSIZE
     sum_multi:  resb 1+BUFSIZE
     buffer:     resb BUFSIZE
 
 section .text
+    global main
     global print_multi
     global getmulti
     global add_multi
@@ -174,10 +177,25 @@ get_max_min:
 add_multi:
     push    ebp                 ; Save caller state
     mov     ebp, esp
-    sub     esp, 4              ; Leave space for local var on stack
     pushad                      ; Save some more caller state
 
-    mov     edi, sum_multi
+    mov     edi, sum_multi      ; Initialize a pointer to the sum multi
+
+    ; Print multis with \n characters
+    push    dword [ebp+8]
+    call    print_multi
+    add     esp, 4
+    push    newline
+    call    printf
+    add     esp, 4
+    push    dword [ebp+12]
+    call    print_multi
+    add     esp, 4
+    push    newline
+    call    printf
+    add     esp, 4
+
+    ; Find multi with larger size
     push    dword [ebp+8]
     push    dword [ebp+12]
     call get_max_min
@@ -212,36 +230,43 @@ add_multi:
     movzx   esi, byte [edi]     ; Save sum size
 
 sum_loop:
+    ; Check if done
+    cmp     esi, 0
+    jz      end_sum
+
     ; Sum each corresponding digit
     mov     al, byte [ebx]
     add     al, byte [ecx]
-; f:
+    f:
+    add     al, byte [edx]      ; Add carry
     add     byte [edx], al
 
     ; Check if carry needs to be propagated
-    cmp     byte [edx], 10
+    cmp     byte [edx], 16
     jb      next_digit
     mov     al, byte [edx]
-    sub     al, 10
+    sub     al, 16
     mov     byte [edx], al
     inc     byte [edx-1]
 
 next_digit:
-    ; Count digits
+    ; Decrement loop counter and move pointers to next digit
     dec     esi
-    cmp     byte [esi], 0
-    je      end_sum
-
-    ; Move to next digit
     dec     ebx
     dec     ecx
     dec     edx
+
     jmp     sum_loop
 
 end_sum:
+    
+    ; Print the sum multi
+    push    dword edi
+    call    print_multi
+    add     esp, 4
+
     mov     [ebp-4], edi        ; Save returned value...
     popad                       ; Restore caller state (registers)
     mov     eax, [ebp-4]        ; place returned value where caller can see it
-    add     esp, 4              ; Restore caller state
     pop     ebp                 ; Restore caller state
     ret                         ; Back to caller
