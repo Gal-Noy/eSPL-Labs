@@ -11,6 +11,8 @@ section .data
     MASK        dw 0b1000000000000001   ; Mask for 16-bit Fibonacci LFSR
     STATE       dw 12345                ; Initial state of the LFSR
 section .bss
+    xmulti:      resb 1+BUFSIZE
+    ymulti:      resb 1+BUFSIZE
     buffer:     resb BUFSIZE
 
 section .text
@@ -99,64 +101,53 @@ getmulti:
     sub     esp, 4          ; Leave space for local var on stack
     pushad                  ; Save some more caller state
 
-    ; Read a line of input from stdin using fgets
+    ; read a line of input from stdin using fgets
     push    dword [stdin]   ; stream
     push    dword BUFSIZE
     push    dword buffer
     call    fgets
     add     esp, 12
 
-    ; Receive the input length
-    push    dword buffer
-    call    strlen
-    add     esp, 4
-    mov     edi, eax        
-    inc     edi             ; Add byte for size
+    mov     edi, xmulti
+    cmp     byte [edi], 0
+    je      init_pointers
+    mov     edi, ymulti
 
-    ; Allocate memory for sum multi
-    mov     edx, edi            ; edi = edx
-    push    edx
-    push    edi
-    call    malloc
-    add     esp, 4
-    pop     edx
-
-    ; Save buffer size
-    mov     byte [eax], dl      ; Save buffer size
-    push    dword eax           ; Push multi
-    mov     ebx, eax
-    inc     ebx                 ; ebx = num
-
+init_pointers:
     ; Initialize pointers
-    mov     edx, buffer         ; edx = buffer[0]
+    mov     ebx, edi        ; ebx = p
+    mov     ecx, 0          ; ecx = size = 0
+    inc     ebx             ; ebx = num
+    mov     esi, buffer     ; esi = buffer[0]
 
 buffer_loop:
     ; Check if we've reached the end of the buffer
-    cmp     byte [edx], 0x0a    ; \n = reached the end of the buffer
+    cmp     byte [esi], 0x0a    ; \n = reached the end of the buffer
     jbe      end_buffer_loop
 
     ; Convert the current pair of characters to hex
-    push    dword edx          
+    push    dword esi          
     call    pair_to_hex         ; Convert first two digits to hex
     add     esp, 4
 
     ; Store the result in the multi struct
-    mov     word [ebx], ax      ; Store the pair of digits
+    mov     byte [ebx], al      ; Store the pair of digits
     inc     ebx              
+    inc     ecx                 ; Increment size by 1
 
     ; Move to the next pair in the buffer
-    add     edx, 2              
+    add     esi, 2              
     jmp     buffer_loop
 
-end_buffer_loop:
-    pop     eax                 ; Achieve the sum multi
+    end_buffer_loop:
+    mov     byte [edi], cl  ; Update multi size
+    mov     [ebp-4], edi    ; Save returned value...
+    popad                   ; Restore caller state (registers)
+    mov     eax, [ebp-4]    ; place returned value where caller can see it
+    add     esp, 4          ; Restore caller state
+    pop     ebp             ; Restore caller state
+    ret                     ; Back to caller
 
-    mov     [ebp-4], eax        ; Save returned value...
-    popad                       ; Restore caller state (registers)
-    mov     eax, [ebp-4]        ; place returned value where caller can see it
-    add     esp, 4
-    pop     ebp                 ; Restore caller state
-    ret                         ; Back to caller
 
 pair_to_hex:
     push    ebp             ; Save caller state
@@ -211,7 +202,6 @@ pair_to_hex:
     shl     ebx, 4
     or      ebx, ecx
     mov     eax, ebx                ; Return result in al
-
     jmp end_convert
 
     invalid_pair:
@@ -312,7 +302,7 @@ add_multi:
 sum_loop:
     cmp     edi, 0              ; Finished with small multi?
     je      handle_longer
-f:
+
     ; Sum digits
     mov     dl, byte [ebx]
     adc     dl, byte [ecx]
@@ -331,9 +321,15 @@ handle_longer:
     cmp     esi, 0              ; Finished with small multi?
     je      end_sum
 
-    mov     dl, byte [ebx]
-    adc     byte [eax+1], 0
+    ; Propagate carry
+    mov     dl, byte [eax]
+    adc     dl, 0
     mov     byte [eax], dl
+
+    ; Add the remaining digits
+    mov     dl, byte [ebx]
+    adc     dl, 0
+    add     byte [eax], dl
 
     ; Decrement loop counter and move pointers to next digit
     dec     esi
