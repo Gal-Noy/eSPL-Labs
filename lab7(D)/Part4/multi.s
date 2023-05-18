@@ -322,14 +322,10 @@ handle_longer:
     je      end_sum
 
     ; Propagate carry
-    mov     dl, byte [eax]
-    adc     dl, 0
-    mov     byte [eax], dl
-
-    ; Add the remaining digits
     mov     dl, byte [ebx]
-    adc     dl, 0
-    add     byte [eax], dl
+    adc     dl, byte [eax]
+    adc     byte [eax+1], 0
+    mov     byte [eax], dl
 
     ; Decrement loop counter and move pointers to next digit
     dec     esi
