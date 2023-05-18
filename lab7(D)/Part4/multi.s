@@ -11,7 +11,6 @@ section .data
     MASK        dw 0b1000000000000001   ; Mask for 16-bit Fibonacci LFSR
     STATE       dw 12345                ; Initial state of the LFSR
 section .bss
-    multi:      resb 1+BUFSIZE
     buffer:     resb BUFSIZE
 
 section .text
@@ -20,7 +19,7 @@ section .text
     global getmulti
     global add_multi
     global rand_num
-    extern printf, fgets, stdin, malloc
+    extern printf, fgets, stdin, malloc, strlen
 
 main:
     push    ebp                 
@@ -43,14 +42,9 @@ r_arg:
     jmp     finish
 i_arg:
     call    getmulti
-    mov     ebx, eax
-    add     eax, 4
+    push    dword eax
     call    getmulti
-    mov     ecx, eax
-f:
-
-    push    dword ebx
-    push    dword ecx
+    push    dword eax
     call    add_multi
     jmp     finish
 no_args:
@@ -105,49 +99,64 @@ getmulti:
     sub     esp, 4          ; Leave space for local var on stack
     pushad                  ; Save some more caller state
 
-    ; read a line of input from stdin using fgets
+    ; Read a line of input from stdin using fgets
     push    dword [stdin]   ; stream
     push    dword BUFSIZE
     push    dword buffer
     call    fgets
     add     esp, 12
 
+    ; Receive the input length
+    push    dword buffer
+    call    strlen
+    add     esp, 4
+    mov     edi, eax        
+    inc     edi             ; Add byte for size
+
+    ; Allocate memory for sum multi
+    mov     edx, edi            ; edi = edx
+    push    edx
+    push    edi
+    call    malloc
+    add     esp, 4
+    pop     edx
+
+    ; Save buffer size
+    mov     byte [eax], dl      ; Save buffer size
+    push    dword eax           ; Push multi
+    mov     ebx, eax
+    inc     ebx                 ; ebx = num
+
     ; Initialize pointers
-    mov     edi, multi
-    mov     ebx, edi        ; ebx = p
-    mov     ecx, 0          ; ecx = size = 0
-    inc     ebx             ; ebx = num
-    mov     esi, buffer     ; esi = buffer[0]
+    mov     edx, buffer         ; edx = buffer[0]
 
 buffer_loop:
     ; Check if we've reached the end of the buffer
-    cmp     byte [esi], 0x0a    ; \n = reached the end of the buffer
-    je      end_buffer_loop
+    cmp     byte [edx], 0x0a    ; \n = reached the end of the buffer
+    jbe      end_buffer_loop
 
     ; Convert the current pair of characters to hex
-    push    dword esi          
+    push    dword edx          
     call    pair_to_hex         ; Convert first two digits to hex
     add     esp, 4
 
     ; Store the result in the multi struct
-    mov     byte [ebx], al      ; Store the pair of digits
+    mov     word [ebx], ax      ; Store the pair of digits
     inc     ebx              
-    inc     ecx                 ; Increment size by 1
 
     ; Move to the next pair in the buffer
-    add     esi, 2              
+    add     edx, 2              
     jmp     buffer_loop
 
 end_buffer_loop:
-    mov     byte [edi], cl  ; Update multi size
+    pop     eax                 ; Achieve the sum multi
 
-    mov     [ebp-4], edi    ; Save returned value...
-    popad                   ; Restore caller state (registers)
-    mov     eax, [ebp-4]    ; place returned value where caller can see it
-    add     esp, 4          ; Restore caller state
-    pop     ebp             ; Restore caller state
-    ret                     ; Back to caller
-
+    mov     [ebp-4], eax        ; Save returned value...
+    popad                       ; Restore caller state (registers)
+    mov     eax, [ebp-4]        ; place returned value where caller can see it
+    add     esp, 4
+    pop     ebp                 ; Restore caller state
+    ret                         ; Back to caller
 
 pair_to_hex:
     push    ebp             ; Save caller state
@@ -159,13 +168,20 @@ pair_to_hex:
     movzx   ebx, byte [eax] ; Get first character
     movzx   ecx, byte [eax+1] ; Get second character
 
+    handle_odd:
+    cmp     ecx, 10                 ; Only one byte
+    jne     get_first
+    mov     ecx, ebx
+    mov     ebx, '0'
+
+    get_first:
     ; Convert first character to nibble value
     cmp     ebx, '0'                ; First digit is 0
     jb      second_char
     cmp     ebx, '9'                ; First digit is a letter
     ja      first_char_is_alpha
     sub     ebx, '0'                ; First digit is a number
-    jmp     get_second_nibble
+    jmp     get_second
 
     first_char_is_alpha:
     cmp     ebx, 'a'
@@ -174,14 +190,14 @@ pair_to_hex:
     ja      invalid_pair
     sub     ebx, 'a' - 10           ; Adjust for alphabetical characters
 
-    get_second_nibble:
+    get_second:
     ; Convert second character to nibble value
     cmp     ecx, '0'                ; Second digit is 0
     jb      invalid_pair
     cmp     ecx, '9'                ; Second digit is a letter
     ja      second_char_is_alpha
     sub     ecx, '0'                ; Second digit is a number
-    jmp     combine_nibbles
+    jmp     combine
 
     second_char_is_alpha:
     cmp     ecx, 'a'
@@ -190,11 +206,12 @@ pair_to_hex:
     ja      invalid_pair
     sub     ecx, 'a' - 10           ; Adjust for alphabetical characters
 
-    combine_nibbles:
+    combine:
     ; Combine nibbles to form byte
     shl     ebx, 4
     or      ebx, ecx
     mov     eax, ebx                ; Return result in al
+
     jmp end_convert
 
     invalid_pair:
@@ -295,7 +312,7 @@ add_multi:
 sum_loop:
     cmp     edi, 0              ; Finished with small multi?
     je      handle_longer
-
+f:
     ; Sum digits
     mov     dl, byte [ebx]
     adc     dl, byte [ecx]
@@ -315,7 +332,7 @@ handle_longer:
     je      end_sum
 
     mov     dl, byte [ebx]
-    adc     dl, 0
+    adc     byte [eax+1], 0
     mov     byte [eax], dl
 
     ; Decrement loop counter and move pointers to next digit
