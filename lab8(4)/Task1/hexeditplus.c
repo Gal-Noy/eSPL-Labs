@@ -199,7 +199,19 @@ void save_into_file(state *s)
 }
 void memory_modify(state *s)
 {
-    fprintf(stderr, "%s", "Not Implemented yet.");
+    unsigned int location, val;
+
+    printf("Enter <location> <val>: ");
+    fgets(input, INSIZE, stdin);
+    sscanf(input, "%x %x", &location, &val);
+
+    if (s->debug_mode == '1')
+    {
+        printf("\nLocation: %X\n", location);
+        printf("Val: 0x%X\n", val);
+    }
+
+    memcpy(&s->mem_buf[location], &val, s->unit_size);
 }
 void quit(state *s)
 {
