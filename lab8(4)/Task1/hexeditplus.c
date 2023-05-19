@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define LINESIZE 128
+#define INSIZE 128
 
-char line[LINESIZE];
+char input[INSIZE];
 
 typedef struct
 {
@@ -13,7 +13,7 @@ typedef struct
     int unit_size;
     unsigned char mem_buf[10000];
     size_t mem_count;
-    /*Any additional fields you deem necessary*/
+    char display_mode;
 } state;
 
 typedef struct fun_desc
@@ -37,39 +37,26 @@ void toggle_debug_mode(state *s)
 }
 void set_file_name(state *s)
 {
+    char name[INSIZE];
 
     printf("\nEnter file name: ");
-    if (fgets(line, LINESIZE, stdin) == NULL)
-    {
-        fprintf(stderr, "%s", "Invalid file name.");
-        return;
-    }
-    if (line[0] == '\n')
-    {
-        fprintf(stderr, "%s", "Invalid file name.");
-        return;
-    }
+    fgets(input, INSIZE, stdin);
+    sscanf(input, "%s", name);
 
-    line[strcspn(line, "\n")] = '\0';
-    strcpy(s->file_name, line);
+    name[strcspn(name, "\n")] = '\0';
+    strcpy(s->file_name, name);
 
     if (s->debug_mode == '1')
-        fprintf(stderr, "Debug: file name set to '%s'\n", s->file_name);
+        fprintf(stderr, "\nDebug: file name set to '%s'.", s->file_name);
 }
 void set_unit_size(state *s)
 {
     int u_size;
 
     printf("\nEnter unit size: ");
-    fgets(line, LINESIZE, stdin);
+    fgets(input, INSIZE, stdin);
+    sscanf(input, "%d", &u_size);
 
-    if (line[0] == '\n')
-    {
-        fprintf(stderr, "%s", "Invalid unit size.");
-        return;
-    }
-
-    u_size = atoi(line);
     if (u_size != 1 && u_size != 2 && u_size != 4)
     {
         fprintf(stderr, "%s", "Invalid unit size.");
@@ -83,15 +70,83 @@ void set_unit_size(state *s)
 }
 void load_into_memory(state *s)
 {
-    fprintf(stderr, "%s", "Not Implemented yet.");
+    FILE *file;
+    unsigned int location;
+    size_t length;
+
+    if (strcmp(s->file_name, "") == 0)
+    {
+        fprintf(stderr, "%s", "Error: File name is empty.\n");
+        return;
+    }
+
+    file = fopen(s->file_name, "r+");
+    if (!file)
+    {
+        fprintf(stderr, "Error: Failed to open file '%s' for reading.\n", s->file_name);
+        return;
+    }
+
+    printf("Enter location and length seperated by space: ");
+    fgets(input, INSIZE, stdin);
+    sscanf(input, "%x %d", &location, &length);
+
+    if (s->debug_mode == '1')
+    {
+        printf("\nFile Name: %s\n", s->file_name);
+        printf("Location: 0x%X\n", location);
+        printf("Length: %zu\n", length);
+    }
+
+    fseek(file, location, SEEK_SET);
+    fread(&s->mem_buf, s->unit_size, length, file);
+    s->mem_count = s->unit_size * length;
+    printf("\nLoaded %d units into memory.\n", length);
+    fclose(file);
 }
 void toggle_display_mode(state *s)
 {
-    fprintf(stderr, "%s", "Not Implemented yet.");
+    if (s->display_mode == 'd')
+    {
+        s->display_mode = 'x';
+        printf("\n%s", "Display flag now on, hexadecimal representation.\n");
+    }
+    else
+    {
+        s->display_mode = 'd';
+        printf("\n%s", "Display flag now off, decimal representation.\n");
+    }
+}
+void print_memory(void *buff, int u, state *s)
+{
+    int u_size = s->unit_size;
+    void *end = buff + (u_size * u);
+    char *dec_formats[] = {"%hhd\n", "%hd\n", "Error", "%d\n"};
+    char *hex_formats[] = {"%hhx\n", "%hx\n", "Error", "%x\n"};
+
+    while (buff < end)
+    {
+        if (s->display_mode == 'd') // Decimal
+            printf(dec_formats[u_size - 1], *(int *)buff);
+        else // Hexadecimal
+            printf(hex_formats[u_size - 1], *(int *)buff);
+
+        buff += u_size;
+    }
 }
 void memory_display(state *s)
 {
-    fprintf(stderr, "%s", "Not Implemented yet.");
+    int u;
+    unsigned int address;
+
+    printf("Enter units and address seperated by space: ");
+    fgets(input, INSIZE, stdin);
+    sscanf(input, "%d %x", &u, &address);
+
+    if (address == 0)
+        print_memory(&(s->mem_buf), u, s);
+    else
+        print_memory(&address, u, s);
 }
 void save_into_file(state *s)
 {
@@ -116,6 +171,7 @@ void print_menu(fun_desc menu[], state *s)
         fprintf(stderr, "Unit Size: %d\n", s->unit_size);
         fprintf(stderr, "File Name: %s\n", s->file_name);
         fprintf(stderr, "Memory Count: %d\n", s->mem_count);
+        // fprintf(stderr, "Display Mode: %c\n", s->debug_mode); // TODO
     }
 
     printf("\nPlease choose a function:\n");
@@ -146,25 +202,18 @@ int main(int argc, char **argv)
     s->file_name[0] = '\0';
     s->unit_size = 1;
     s->mem_buf[0] = '\0';
-    s->mem_count = 0;
+    s->mem_count = (size_t)0;
+    s->display_mode = 'd'; // Decimal
 
     print_menu(menu, s);
 
-    while ((fgets(line, LINESIZE, stdin)) != NULL)
+    while (fgets(input, INSIZE, stdin))
     {
-        idx = atoi(line);
+        idx = atoi(input);
         if (idx < 0 || idx > 8)
-            fprintf(stderr, "%s", "Not within bounds.\n");
-
-        menu[idx].fun(s);
-        // virus_list = menu[idx - 1].fun(virus_list, file_name);
-
-        // if (!virus_list)
-        // {
-        //     if (idx == 5)
-        //         printf("Goodbye.\n");
-        //     goto end_program;
-        // }
+            fprintf(stderr, "%s", "\nNot within bounds.\n");
+        else
+            menu[idx].fun(s);
 
         printf("\n");
         print_menu(menu, s);
