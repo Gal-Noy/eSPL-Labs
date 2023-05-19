@@ -8,8 +8,8 @@ section .data
     BUFSIZE     EQU 600
     format:     db "%02hhx", 0
     newline:    db 10, 0
-    MASK        dw 0b1000000000000001   ; Mask for 16-bit Fibonacci LFSR
-    STATE       dw 12345                ; Initial state of the LFSR
+    MASK        dw 0x1010       ; Mask for 16-bit Fibonacci LFSR
+    STATE       dw 0xabcd       ; Initial state of the LFSR
 section .bss
     xmulti:      resb 1+BUFSIZE
     ymulti:      resb 1+BUFSIZE
@@ -44,6 +44,7 @@ main:
     r_arg:
     call    pr_multi
     push    dword eax
+    f:
     call    pr_multi
     push    dword eax
     call    add_multi
@@ -271,7 +272,7 @@ add_multi:
     push    dword [ebp+12]
     call    get_max_min
     add     esp, 8
-
+    h:
     movzx   edx, byte [eax]     ; Get the larger size
     inc     edx                 ; edx = sum multi size (add one for overflow)
 
@@ -372,9 +373,14 @@ rand_num:
     even:
     shr     ebx, 1              ; Shift right with msb 0
     
+    cmp     ebx, 0
+    jne     finish_rn
+    mov     ebx, 0xabcd
+
     finish_rn:
     mov     [STATE], ebx
     mov     [ebp-4], ebx
+    g:
     popad
     mov     eax, [ebp-4]
     add     esp, 4
@@ -389,7 +395,6 @@ pr_multi:
 
     generate_number:
     call    rand_num
-    
     movzx   ebx, al                 ; Get n = size
     cmp     ebx, 0                  ; Check not zero
     je      generate_number
