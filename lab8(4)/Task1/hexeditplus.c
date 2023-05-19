@@ -87,7 +87,7 @@ void load_into_memory(state *s)
         return;
     }
 
-    printf("Enter location and length seperated by space: ");
+    printf("Enter: <location> <length>: ");
     fgets(input, INSIZE, stdin);
     sscanf(input, "%x %d", &location, &length);
 
@@ -99,8 +99,9 @@ void load_into_memory(state *s)
     }
 
     fseek(file, location, SEEK_SET);
-    fread(&s->mem_buf, s->unit_size, length, file);
+    fread(s->mem_buf, s->unit_size, length, file);
     s->mem_count = s->unit_size * length;
+
     printf("\nLoaded %d units into memory.\n", length);
     fclose(file);
 }
@@ -120,13 +121,20 @@ void toggle_display_mode(state *s)
 void print_memory(void *buff, int u, state *s)
 {
     int u_size = s->unit_size;
+    char display_mode = s->display_mode;
+
     void *end = buff + (u_size * u);
-    char *dec_formats[] = {"%hhd\n", "%hd\n", "Error", "%d\n"};
-    char *hex_formats[] = {"%hhx\n", "%hx\n", "Error", "%x\n"};
+    static char *hex_formats[] = {"%#hhx\n", "%#hx\n", "No such unit", "%#x\n"};
+    static char *dec_formats[] = {"%#hhd\n", "%#hd\n", "No such unit", "%#d\n"};
+
+    if (display_mode == 'd')
+        printf("Decimal\n=======\n");
+    else
+        printf("Hexadecimal\n=======\n");
 
     while (buff < end)
     {
-        if (s->display_mode == 'd') // Decimal
+        if (display_mode == 'd') // Decimal
             printf(dec_formats[u_size - 1], *(int *)buff);
         else // Hexadecimal
             printf(hex_formats[u_size - 1], *(int *)buff);
@@ -139,9 +147,9 @@ void memory_display(state *s)
     int u;
     unsigned int address;
 
-    printf("Enter units and address seperated by space: ");
+    printf("Enter: <address> <units>: ");
     fgets(input, INSIZE, stdin);
-    sscanf(input, "%d %x", &u, &address);
+    sscanf(input, "%x %d", &address, &u);
 
     if (address == 0)
         print_memory(&(s->mem_buf), u, s);
@@ -150,7 +158,44 @@ void memory_display(state *s)
 }
 void save_into_file(state *s)
 {
-    fprintf(stderr, "%s", "Not Implemented yet.");
+    FILE *file;
+    unsigned int source_address, target_location;
+    size_t length;
+
+    if (strcmp(s->file_name, "") == 0)
+    {
+        printf("Error: File name is empty.\n");
+        return;
+    }
+
+    file = fopen(s->file_name, "r+b");
+    if (!file)
+    {
+        printf("Error: Failed to open file '%s' for writing.\n", s->file_name);
+        return;
+    }
+
+    printf("Enter <source-address> <target-location> <length>: ");
+    fgets(input, INSIZE, stdin);
+    sscanf(input, "%x %x %d", &source_address, &target_location, &length);
+
+    if (s->debug_mode == '1')
+    {
+        printf("\nFile name: %s\n", s->file_name);
+        printf("Source address: 0x%X\n", source_address);
+        printf("Target location: 0x%X\n", target_location);
+        printf("Length: %d\n", length);
+    }
+
+    fseek(file, target_location, SEEK_SET);
+
+    if (source_address == 0)
+        fwrite(&s->mem_buf, s->unit_size, length, file);
+    else
+        fwrite(&source_address, s->unit_size, length, file);
+
+    printf("Wrote %d units into file\n", length);
+    fclose(file);
 }
 void memory_modify(state *s)
 {
@@ -171,7 +216,10 @@ void print_menu(fun_desc menu[], state *s)
         fprintf(stderr, "Unit Size: %d\n", s->unit_size);
         fprintf(stderr, "File Name: %s\n", s->file_name);
         fprintf(stderr, "Memory Count: %d\n", s->mem_count);
-        // fprintf(stderr, "Display Mode: %c\n", s->debug_mode); // TODO
+        if (s->display_mode == 'd')
+            fprintf(stderr, "%s", "Display Mode: Decimal\n");
+        else
+            fprintf(stderr, "%s", "Display Mode: Hexadecimal\n");
     }
 
     printf("\nPlease choose a function:\n");
