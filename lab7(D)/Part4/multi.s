@@ -21,6 +21,7 @@ section .text
     global getmulti
     global add_multi
     global rand_num
+    global pr_multi
     extern printf, fgets, stdin, malloc, strlen
 
 main:
@@ -40,21 +41,26 @@ main:
     cmp     al, 'I'
     je      i_arg
 
-r_arg:
+    r_arg:
+    call    pr_multi
+    push    dword eax
+    call    pr_multi
+    push    dword eax
+    call    add_multi
     jmp     finish
-i_arg:
+    i_arg:
     call    getmulti
     push    dword eax
     call    getmulti
     push    dword eax
     call    add_multi
     jmp     finish
-no_args:
+    no_args:
     push    dword y_struct
     push    dword x_struct
     call    add_multi
 
-finish:
+    finish:
     mov     esp, ebp
     pop     ebp
     ret
@@ -67,14 +73,14 @@ print_multi:
     movzx   ebx, byte [edi]     ; ebx = size
     add     edi, ebx            ; edi = last num
 
-remove_leading_zeros:
+    remove_leading_zeros:
     cmp     byte [edi], 0
     jne     chars_loop
     dec     ebx
     dec     edi
     jmp remove_leading_zeros
 
-chars_loop:
+    chars_loop:
     ; Check if printed all chars
 
     cmp     ebx, 0
@@ -90,7 +96,7 @@ chars_loop:
     dec     edi
     jmp     chars_loop
 
-loop_end:
+    loop_end:
     popad
     pop     ebp
     ret                     ; Back to caller
@@ -113,14 +119,14 @@ getmulti:
     je      init_pointers
     mov     edi, ymulti
 
-init_pointers:
+    init_pointers:
     ; Initialize pointers
     mov     ebx, edi        ; ebx = p
     mov     ecx, 0          ; ecx = size = 0
     inc     ebx             ; ebx = num
     mov     esi, buffer     ; esi = buffer[0]
 
-buffer_loop:
+    buffer_loop:
     ; Check if we've reached the end of the buffer
     cmp     byte [esi], 0x0a    ; \n = reached the end of the buffer
     jbe      end_buffer_loop
@@ -267,7 +273,7 @@ add_multi:
     add     esp, 8
 
     movzx   edx, byte [eax]     ; Get the larger size
-    inc     edx                 ; edx = sum multi size
+    inc     edx                 ; edx = sum multi size (add one for overflow)
 
     mov     ecx, ebx            ; ecx = smaller multi
     mov     ebx, eax            ; ebx = larger multi
@@ -275,7 +281,7 @@ add_multi:
     push    ecx
     push    edx
 
-    ; Allocate memory for sum multi
+    ; Allocate memory for sum-multi
     mov     edi, edx            ; edi = edx
     push    edi
     call    malloc
@@ -286,27 +292,27 @@ add_multi:
 
     ; Save buffer size
     mov     byte [eax], dl      ; Save buffer size
-    push    dword eax           ; Push sum multi
+    push    dword eax           ; Push sum-multi
 
     movzx   edi, byte [ecx]     ; Save small multi size
     movzx   esi, byte [ebx]     ; Save large multi size
     sub     esi, edi            ; esi = remainder
 
     ; Move pointers to start of buffers
-    inc     eax                 ; Sum multi
+    inc     eax                 ; sum-multi
     inc     ebx                 ; Large multi
     inc     ecx                 ; Small multi
     xor     edx, edx            ; Clear edx
     CLC                         ; Clear carry flag
 
-sum_loop:
+    sum_loop:
     cmp     edi, 0              ; Finished with small multi?
     je      handle_longer
 
     ; Sum digits
     mov     dl, byte [ebx]
     adc     dl, byte [ecx]
-    adc     byte [eax+1], 0
+    adc     byte [eax+1], 0     ; Move carry forward
     add     byte [eax], dl
 
     ; Decrement loop counter and move pointers to next digit
@@ -317,14 +323,14 @@ sum_loop:
 
     jmp     sum_loop
 
-handle_longer:
+    handle_longer:
     cmp     esi, 0              ; Finished with small multi?
     je      end_sum
 
     ; Propagate carry
     mov     dl, byte [ebx]
-    adc     dl, byte [eax]
-    adc     byte [eax+1], 0
+    adc     dl, byte [eax]      ; Add carry
+    adc     byte [eax+1], 0     ; Move carry forward
     mov     byte [eax], dl
 
     ; Decrement loop counter and move pointers to next digit
@@ -334,10 +340,10 @@ handle_longer:
 
     jmp     handle_longer
 
-end_sum:
-    pop     eax                 ; Achieve the sum multi
+    end_sum:
+    pop     eax                 ; Achieve the sum-multi
 
-    ; Print the sum multi
+    ; Print the sum-multi
     push    dword eax
     call    print_multi
     add     esp, 4
@@ -349,6 +355,80 @@ end_sum:
     pop     ebp                 ; Restore caller state
     ret                         ; Back to caller
 
+rand_num:
+    push    ebp                 ; Save caller state
+    mov     ebp, esp
+    sub     esp, 4
+    pushad
+
+    movzx   eax, word [STATE]   ; Load state
+    mov     ebx, eax
+    
+    and     eax, [MASK]         ; Get relevant bits
+    jpe     even
+
+    rcr     ebx, 1              ; Shift right with msb 1
+    jmp     finish_rn
+    even:
+    shr     ebx, 1              ; Shift right with msb 0
+    
+    finish_rn:
+    mov     [STATE], ebx
+    mov     [ebp-4], ebx
+    popad
+    mov     eax, [ebp-4]
+    add     esp, 4
+    pop     ebp                 ; Restore caller state
+    ret                         ; Back to caller
+
+pr_multi:
+    push    ebp                     ; Save caller state
+    mov     ebp, esp
+    sub     esp, 4
+    pushad
+
+    generate_number:
+    call    rand_num
+    
+    movzx   ebx, al                 ; Get n = size
+    cmp     ebx, 0                  ; Check not zero
+    je      generate_number
+
+    mov     edi, ebx
+    shl     edi, 3                ; For allocating 8*n bits
+    inc     edi                     ; For size bit
+
+    push    edi
+    call    malloc
+    add     esp, 4
+
+    mov     edx, eax
+    mov     byte [edx], bl          ; Save buffer size
+    inc     edx                     ; Move to num buffer
+
+    xor     ecx, ecx                ; Initialize counter
+
+    generate_multi:
+    cmp    ecx, ebx
+    je     finish_pr
+    inc    ecx
+
+    call    rand_num                ; Generate a random byte
+
+    mov     byte [edx], al          ; Store generated byte
+    inc     edx
+
+    jmp     generate_multi
+
+    finish_pr:
+    sub     edx, ebx
+    dec     edx
+    mov     [ebp-4], edx
+    popad
+    mov     eax, [ebp-4]
+    add     esp, 4
+    pop     ebp                     ; Restore caller state
+    ret                             ; Back to caller
 
 
 	
