@@ -1,5 +1,6 @@
-readelf -s: _start is at 08048156, at index 8 of the symbol table
-readelf -h: symbol table .symtab is at offset 000208
-each entry is 16 bytes so _start is at offset: 208 + (16 * 8) = 288
+readelf -s: _start is at 08048156
 readelf -S: Entry point address is 0x804816c
-location = 288, length = 1 (unit_size = 4 = address size)
+
+entry location = 0x18, length = 1 (unit_size = 4 = address size)
+
+Insert 08048156 (start address) into 0x18
