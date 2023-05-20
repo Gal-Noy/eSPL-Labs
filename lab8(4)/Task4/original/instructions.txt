@@ -1,0 +1,34 @@
+ntsc digit_cnt
+readelf -s:
+addr - 00000577
+size - 1136
+section - 14
+
+readelf -S: ntsc section 14
+addr - 00000410
+offset - 000410
+size - 6b2
+
+main_addr = 00000577 - 00000410 = 167
+main_offset = 410 + 167 = 577
+
+;;;;;;;;;;;;;;;
+
+digit_count
+readelf -s:
+addr - 0000056d
+size - 80
+section - 14
+
+readelf -S: digit_count section 14
+addr - 00000430
+offset - 000430
+size - 262
+
+main_addr = 0000056d - 00000430 = 13d
+main_offset = 430 + 13d = 56d
+
+;;;;;;;;;;;;;;;
+
+1. Load 80 from digit_count_56d
+2. Save 80 into ntsc_577
