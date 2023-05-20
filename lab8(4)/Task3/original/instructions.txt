@@ -1,0 +1,14 @@
+readelf -s: main
+addr - 0804841d
+size - 23
+section - 13
+
+readelf -S: section 13
+addr - 08048320
+offset - 000320
+size - 192
+
+main_addr = 0804841d - 08048320 = 0xfd
+main_offset = 320 + fd = 41d
+
+ret = 0xc3
