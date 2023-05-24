@@ -1,0 +1,11 @@
+1. Set debug mode
+2. Set unit size - 2
+3. Load into memory - 12f 10
+4. Toggle display mode - hex
+5. Memory display - 0 5
+6. Toggle display mode - dec
+7. Memory display - 0 5
+8. Save into file - 960c170 33 4
+9. Memory modify - 40 804808a
+10. Save into file - 40 0 4
+11. hexedit abc
