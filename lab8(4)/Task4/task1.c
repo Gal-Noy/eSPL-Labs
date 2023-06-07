@@ -19,7 +19,7 @@ typedef struct
 typedef struct fun_desc
 {
     char *name;
-    void (*fun)(state *s); // TODO: change signature
+    void (*fun)(state *s);
 } fun_desc;
 
 void toggle_debug_mode(state *s)
