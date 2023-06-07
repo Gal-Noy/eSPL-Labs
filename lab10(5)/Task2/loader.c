@@ -121,19 +121,6 @@ void load_phdr(Elf32_Phdr *phdr, int fd)
         }
         print_phdr_info(phdr, 0);
     }
-    // if (phdr->p_type != PT_LOAD)
-    //     return;
-    // void *vadd = (void *)(phdr->p_vaddr & 0xfffff000);
-    // int offset = phdr->p_offset & 0xfffff000;
-    // int padding = phdr->p_vaddr & 0xfff;
-    // int convertedFlag = get_prot_flags(phdr->p_flags);
-    // void *temp;
-    // if ((temp = mmap(vadd, phdr->p_memsz + padding, convertedFlag, MAP_FIXED | MAP_PRIVATE, fd, offset)) == MAP_FAILED)
-    // {
-    //     perror("mmap failed1");
-    //     exit(-4);
-    // }
-    // print_phdr_info(phdr, 0);
 }
 int foreach_phdr(void *map_start, void (*func)(Elf32_Phdr *, int), int arg)
 {
