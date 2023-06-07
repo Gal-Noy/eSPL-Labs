@@ -9,8 +9,8 @@ addr - 00000410
 offset - 000410
 size - 6b2
 
-main_addr = 00000577 - 00000410 = 167
-main_offset = 410 + 167 = 577
+digit_cnt = 00000577 - 00000410 = 167
+digit_cnt_offset = 410 + 167 = 577
 
 ;;;;;;;;;;;;;;;
 

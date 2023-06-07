@@ -44,7 +44,6 @@ main:
     r_arg:
     call    pr_multi
     push    dword eax
-    f:
     call    pr_multi
     push    dword eax
     call    add_multi
