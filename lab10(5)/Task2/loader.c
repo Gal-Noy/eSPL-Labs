@@ -3,7 +3,6 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <elf.h>
@@ -122,6 +121,19 @@ void load_phdr(Elf32_Phdr *phdr, int fd)
         }
         print_phdr_info(phdr, 0);
     }
+    // if (phdr->p_type != PT_LOAD)
+    //     return;
+    // void *vadd = (void *)(phdr->p_vaddr & 0xfffff000);
+    // int offset = phdr->p_offset & 0xfffff000;
+    // int padding = phdr->p_vaddr & 0xfff;
+    // int convertedFlag = get_prot_flags(phdr->p_flags);
+    // void *temp;
+    // if ((temp = mmap(vadd, phdr->p_memsz + padding, convertedFlag, MAP_FIXED | MAP_PRIVATE, fd, offset)) == MAP_FAILED)
+    // {
+    //     perror("mmap failed1");
+    //     exit(-4);
+    // }
+    // print_phdr_info(phdr, 0);
 }
 int foreach_phdr(void *map_start, void (*func)(Elf32_Phdr *, int), int arg)
 {
@@ -174,7 +186,7 @@ int main(int argc, char *argv[])
     fd = load_file(argv[1]);
     header = (Elf32_Ehdr *)map_start;
 
-    foreach_phdr(map_start, print_phdr_info, fd);
+    foreach_phdr(map_start, load_phdr, fd);
     startup(argc - 1, argv + 1, (void *)(header->e_entry));
 
     return 0;
