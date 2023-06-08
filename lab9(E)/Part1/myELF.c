@@ -141,7 +141,85 @@ void examine_elf_file()
         fprintf(stderr, "%s", "\nCannot examine more than 2 ELF files.\n");
 }
 
-void print_section_names() {}
+char *type_to_string(int type)
+{
+    switch (type)
+    {
+    case 0:
+        return "NULL";
+    case 1:
+        return "PROGBITS";
+    case 2:
+        return "SYMTAB";
+    case 3:
+        return "STRTAB";
+    case 4:
+        return "RELA";
+    case 5:
+        return "HASH";
+    case 6:
+        return "DYNAMIC";
+    case 7:
+        return "NOTE";
+    case 8:
+        return "NOBITS";
+    case 9:
+        return "REL";
+    case 10:
+        return "SHLIB";
+    case 11:
+        return "DYNSYM";
+    case 0x6ffffffa:
+        return "SUNW_move";
+    case 0x6ffffffb:
+        return "SUNW_COMDAT";
+    case 0x6ffffffc:
+        return "SUNW_syminfo";
+    case 0x6ffffffd:
+        return "SUNW_verdef";
+    case 0x6ffffffe:
+        return "SUNW_verneed";
+    case 0x6fffffff:
+        return "SUNW_versym";
+    case 0x70000000:
+        return "LOPROC";
+    case 0x7fffffff:
+        return "HIPROC";
+    case 0x80000000:
+        return "LOUSER";
+    case 0xffffffff:
+        return "HIUSER";
+    }
+    return "";
+}
+void psn(elf_file *f)
+{
+    int i;
+    Elf32_Shdr *sections_table = (Elf32_Shdr *)(f->map_start + f->header->e_shoff);
+    Elf32_Shdr *sections_names_raw = (Elf32_Shdr *)(sections_table + f->header->e_shstrndx);
+    char *sections_names = f->map_start + sections_names_raw->sh_offset;
+
+    printf("FILE %s\n", f->name);
+    printf("%s %-20s %-12s %-12s %-12s %-12s\n",
+           "[Nr]", "Name", "Address", "Offset", "Size", "Type");
+    for (i = 0; i < f->header->e_shnum; i++)
+    {
+        Elf32_Shdr section = sections_table[i];
+        printf("[%2d] %-20s %-12.08x %-12.06x %-12.06x %-12s\n",
+               i, sections_names + section.sh_name, section.sh_addr, section.sh_offset, section.sh_size, type_to_string(section.sh_type));
+    }
+}
+void print_section_names()
+{
+    if (files_num > 0)
+    {
+        psn(f1);
+        if (files_num > 1)
+            psn(f2);
+    }
+    else
+        fprintf(stderr, "%s", "\nNo files loaded.\n");
+}
 void print_symbols() {}
 void check_files() {}
 void merge_files() {}
