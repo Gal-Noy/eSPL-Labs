@@ -330,14 +330,75 @@ void print_symbols()
         fprintf(stderr, "\nError: No files loaded.\n");
 }
 
+Elf32_Sym *search_sym2(int symbols2_num, Elf32_Shdr *symtab2, Elf32_Shdr *strtab2, char *sym1_name)
+{
+    int i;
+    Elf32_Sym *sym2;
+    char *sym2_name;
+
+    for (i = 1; i < symbols2_num; i++)
+    {
+        sym2 = f2->map_start + symtab2->sh_offset + (i * sizeof(Elf32_Sym));
+        sym2_name = f2->map_start + strtab2->sh_offset + sym2->st_name;
+        if (sym2_name[0] != '\0' && strcmp(sym1_name, sym2_name) == 0)
+            return sym2;
+    }
+    return NULL;
+}
 void check_files()
 {
-    printf("\nNot implemented yet.\n");
+    int i, symbols1_num, symbols2_num;
+    Elf32_Shdr *symtab1, *symtab2, *strtab1, *strtab2;
+    Elf32_Sym *sym1, *sym2;
+    char *sym1_name;
+
+    if (files_num < 2)
+    {
+        fprintf(stderr, "\nError: Not enough ELF files loaded.\n");
+        return;
+    }
+
+    symtab1 = get_table(f1, ".symtab");
+    symtab2 = get_table(f2, ".symtab");
+
+    if ((symtab1 && get_table(f1, ".dynsym")) || (symtab2 && get_table(f2, ".dynsym")))
+    {
+        fprintf(stderr, "\nError: Feature not supported (more than one symbol table).\n");
+        return;
+    }
+
+    strtab1 = get_table(f1, ".strtab");
+    strtab2 = get_table(f2, ".strtab");
+
+    symbols1_num = symtab1->sh_size / sizeof(Elf32_Sym);
+    symbols2_num = symtab2->sh_size / sizeof(Elf32_Sym);
+
+    for (i = 1; i < symbols1_num; i++)
+    {
+        sym1 = f1->map_start + symtab1->sh_offset + (i * sizeof(Elf32_Sym));
+        sym1_name = f1->map_start + strtab1->sh_offset + sym1->st_name;
+
+        if (sym1_name[0] != '\0')
+        {
+            if (sym1->st_shndx == SHN_UNDEF)
+            {
+                sym2 = search_sym2(symbols2_num, symtab2, strtab2, sym1_name);
+                if (!sym2 || sym2->st_shndx == SHN_UNDEF)
+                    fprintf(stderr, "\nSymbol %s undefined.\n", sym1_name);
+            }
+            else
+            {
+                sym2 = search_sym2(symbols2_num, symtab2, strtab2, sym1_name);
+                if (sym2)
+                    fprintf(stderr, "\nSymbol %s multiply defined.\n", sym1_name);
+            }
+        }
+    }
+
+    if (debug_mode)
+        fprintf(stderr, "\nSymbol conflict check complete.\n");
 }
-void merge_files()
-{
-    printf("\nNot implemented yet.\n");
-}
+void merge_files() { printf("\nNot implemented yet.\n"); }
 
 void print_menu(fun_desc menu[])
 {
