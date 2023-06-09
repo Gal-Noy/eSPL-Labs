@@ -39,27 +39,28 @@ void quit()
     free(f2);
     exit(EXIT_SUCCESS);
 }
-void load_file(elf_file *f)
+int load_file(elf_file *f)
 {
     if ((f->fd = open(f->name, O_RDWR)) < 0)
     {
         perror("Failed to open file");
-        quit();
+        return 0;
     }
 
     if ((f->len = lseek(f->fd, 0, SEEK_END)) == -1)
     {
         perror("Failed to determine file size");
-        quit();
+        return 0;
     }
 
     if ((f->map_start = mmap(NULL, f->len, PROT_READ, MAP_SHARED, f->fd, 0)) == MAP_FAILED)
     {
         perror("Failed to map file into memory");
-        quit();
+        return 0;
     }
 
     files_num++; // File loaded successfully
+    return 1;
 }
 char *get_scheme(Elf32_Ehdr *header)
 {
@@ -127,9 +128,11 @@ void eef(elf_file *f)
     sscanf(input, "%s", f->name);
     f->name[strcspn(f->name, "\n")] = '\0';
 
-    load_file(f);
-    f->header = (Elf32_Ehdr *)f->map_start;
-    print_elf_info(f);
+    if (load_file(f))
+    {
+        f->header = (Elf32_Ehdr *)f->map_start;
+        print_elf_info(f);
+    }
 }
 void examine_elf_file()
 {
@@ -226,7 +229,106 @@ void print_section_names()
     else
         fprintf(stderr, "%s", "\nNo files loaded.\n");
 }
-void print_symbols() { printf("\nNot implemented yet.\n"); }
+
+char *get_section_idx(Elf32_Section index)
+{
+    switch (index)
+    {
+    case SHN_UNDEF:
+        return "UND";
+    case SHN_LORESERVE:
+        return "LORESERVE";
+    case SHN_HIPROC:
+        return "HIPROC";
+    case SHN_ABS:
+        return "ABS";
+    case SHN_COMMON:
+        return "COMMON";
+    case SHN_HIRESERVE:
+        return "HIRESERVE";
+    default:
+        return NULL;
+    }
+}
+Elf32_Shdr *get_table(elf_file *f, char *table_name)
+{
+    int i;
+    Elf32_Shdr *curr_symbol, *sections_names_raw = f->map_start + f->header->e_shoff + (f->header->e_shstrndx * f->header->e_shentsize);
+    char *curr_name;
+    for (i = 0; i < f->header->e_shnum; i++)
+    {
+        curr_symbol = f->map_start + f->header->e_shoff + (i * f->header->e_shentsize);
+        curr_name = f->map_start + sections_names_raw->sh_offset + curr_symbol->sh_name;
+        if (strcmp(table_name, curr_name) == 0)
+            return curr_symbol;
+    }
+    return NULL;
+}
+void print_table(elf_file *f, char *table_name)
+{
+    int i, symbols_num;
+    Elf32_Sym *curr_symbol;
+    Elf32_Shdr *sym_table = get_table(f, table_name),
+               *strtab = get_table(f, ".strtab"),
+               *shstrtab = get_table(f, ".shstrtab"),
+               *section_entry;
+    char *section_name, *symbol_name, *sec_idx;
+
+    if (!sym_table)
+    {
+        fprintf(stderr, "\nError: Can't find symbol table '%s' offset\n", table_name);
+        return;
+    }
+
+    symbols_num = sym_table->sh_size / sizeof(Elf32_Sym);
+
+    printf("\nSymbol table '%s' contains %d entries:\n", table_name, symbols_num);
+    printf("%s\t %-12s %-12s %-20s %-12s\n",
+           "[Num]", "Value", "SecIdx", "SecName", "SymName");
+
+    for (i = 0; i < symbols_num; i++)
+    {
+        curr_symbol = f->map_start + sym_table->sh_offset + (i * sizeof(Elf32_Sym));
+
+        sec_idx = get_section_idx(curr_symbol->st_shndx);
+
+        if (sec_idx)
+            section_name = "";
+        else
+        {
+            section_entry = f->map_start + f->header->e_shoff + (curr_symbol->st_shndx * f->header->e_shentsize);
+            section_name = f->map_start + shstrtab->sh_offset + section_entry->sh_name;
+        }
+
+        symbol_name = f->map_start + strtab->sh_offset + curr_symbol->st_name;
+
+        // Print data
+        if (sec_idx)
+            printf("[%2d]\t %-12.08x %-12s %-20s %-12s\n",
+                   i, curr_symbol->st_value, sec_idx, section_name, symbol_name);
+        else
+            printf("[%2d]\t %-12.08x %-12d %-20s %-12s\n",
+                   i, curr_symbol->st_value, curr_symbol->st_shndx, section_name, symbol_name);
+    }
+}
+void ps(elf_file *f)
+{
+    printf("\nFILE %s\n", f->name);
+    print_table(f, ".dynsym");
+    print_table(f, ".symtab");
+}
+
+void print_symbols()
+{
+    if (files_num > 0)
+    {
+        ps(f1);
+        if (files_num > 1)
+            ps(f2);
+    }
+    else
+        fprintf(stderr, "%s", "\nNo files loaded.\n");
+}
 void check_files() { printf("\nNot implemented yet.\n"); }
 void merge_files() { printf("\nNot implemented yet.\n"); }
 

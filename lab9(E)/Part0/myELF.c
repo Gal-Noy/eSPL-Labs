@@ -141,10 +141,10 @@ void examine_elf_file()
         fprintf(stderr, "%s", "\nCannot examine more than 2 ELF files.\n");
 }
 
-void print_section_names() {}
-void print_symbols() {}
-void check_files() {}
-void merge_files() {}
+void print_section_names() { printf("\nNot implemented yet.\n"); }
+void print_symbols() { printf("\nNot implemented yet.\n"); }
+void check_files() { printf("\nNot implemented yet.\n"); }
+void merge_files() { printf("\nNot implemented yet.\n"); }
 
 void print_menu(fun_desc menu[])
 {
