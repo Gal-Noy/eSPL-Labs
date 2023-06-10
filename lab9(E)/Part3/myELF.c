@@ -7,9 +7,12 @@
 #include <fcntl.h>
 #include <elf.h>
 
-#define BUFSIZE 128
+#define BUFSIZE 256
+#define HEDSIZE sizeof(Elf32_Ehdr)
+#define SECSIZE sizeof(Elf32_Shdr)
+#define SYMSIZE sizeof(Elf32_Sym)
 
-typedef struct
+typedef struct elf_file
 {
     char name[BUFSIZE];
     int fd;
@@ -125,6 +128,7 @@ void eef(elf_file *f)
     else
         printf("\nEnter second file name: ");
 
+    // Get file name
     fgets(input, BUFSIZE, stdin);
     sscanf(input, "%s", f->name);
     f->name[strcspn(f->name, "\n")] = '\0';
@@ -199,8 +203,9 @@ char *type_to_string(int type)
 void psn(elf_file *f)
 {
     int i;
-    Elf32_Shdr *sections_table = (Elf32_Shdr *)(f->map_start + f->header->e_shoff), *section;
-    Elf32_Shdr *sections_names_raw = (Elf32_Shdr *)(sections_table + f->header->e_shstrndx);
+    Elf32_Shdr *sections_table = (Elf32_Shdr *)(f->map_start + f->header->e_shoff),
+               *sections_names_raw = (Elf32_Shdr *)(sections_table + f->header->e_shstrndx),
+               *section;
     char *sections_names = f->map_start + sections_names_raw->sh_offset;
 
     printf("\nFILE %s\n", f->name);
@@ -254,8 +259,10 @@ char *get_section_idx(Elf32_Section index)
 Elf32_Shdr *get_table(elf_file *f, char *table_name)
 {
     int i;
-    Elf32_Shdr *curr_symbol, *sections_names_raw = f->map_start + f->header->e_shoff + (f->header->e_shstrndx * f->header->e_shentsize);
+    Elf32_Shdr *curr_symbol,
+        *sections_names_raw = f->map_start + f->header->e_shoff + (f->header->e_shstrndx * f->header->e_shentsize);
     char *curr_name;
+
     for (i = 0; i < f->header->e_shnum; i++)
     {
         curr_symbol = f->map_start + f->header->e_shoff + (i * f->header->e_shentsize);
@@ -263,6 +270,7 @@ Elf32_Shdr *get_table(elf_file *f, char *table_name)
         if (strcmp(table_name, curr_name) == 0)
             return curr_symbol;
     }
+
     return NULL;
 }
 void print_table(elf_file *f, char *table_name)
@@ -277,11 +285,11 @@ void print_table(elf_file *f, char *table_name)
 
     if (!sym_table)
     {
-        fprintf(stderr, "\nCan't find symbol table '%s' offset\n", table_name);
+        fprintf(stderr, "\nCan't find symbol table '%s' offset.\n", table_name);
         return;
     }
 
-    symbols_num = sym_table->sh_size / sizeof(Elf32_Sym);
+    symbols_num = sym_table->sh_size / SYMSIZE;
 
     printf("\nSymbol table '%s' contains %d entries:\n", table_name, symbols_num);
     printf("%s\t %-12s %-12s %-20s %-12s\n",
@@ -289,7 +297,7 @@ void print_table(elf_file *f, char *table_name)
 
     for (i = 0; i < symbols_num; i++)
     {
-        curr_symbol = f->map_start + sym_table->sh_offset + (i * sizeof(Elf32_Sym));
+        curr_symbol = f->map_start + sym_table->sh_offset + (i * SYMSIZE);
 
         sec_idx = get_section_idx(curr_symbol->st_shndx);
 
@@ -303,7 +311,7 @@ void print_table(elf_file *f, char *table_name)
 
         symbol_name = f->map_start + strtab->sh_offset + curr_symbol->st_name;
 
-        // Print data
+        // Print symbol data
         if (sec_idx)
             printf("[%2d]\t %-12.08x %-12s %-20s %-12s\n",
                    i, curr_symbol->st_value, sec_idx, section_name, symbol_name);
@@ -338,7 +346,7 @@ Elf32_Sym *search_sym2(int symbols2_num, Elf32_Shdr *symtab2, Elf32_Shdr *strtab
 
     for (i = 1; i < symbols2_num; i++)
     {
-        sym2 = f2->map_start + symtab2->sh_offset + (i * sizeof(Elf32_Sym));
+        sym2 = f2->map_start + symtab2->sh_offset + (i * SYMSIZE);
         sym2_name = f2->map_start + strtab2->sh_offset + sym2->st_name;
         if (strcmp(sym1_name, sym2_name) == 0)
             return sym2;
@@ -370,12 +378,12 @@ void check_files()
     strtab1 = get_table(f1, ".strtab");
     strtab2 = get_table(f2, ".strtab");
 
-    symbols1_num = symtab1->sh_size / sizeof(Elf32_Sym);
-    symbols2_num = symtab2->sh_size / sizeof(Elf32_Sym);
+    symbols1_num = symtab1->sh_size / SYMSIZE;
+    symbols2_num = symtab2->sh_size / SYMSIZE;
 
     for (i = 1; i < symbols1_num; i++)
     {
-        sym1 = f1->map_start + symtab1->sh_offset + (i * sizeof(Elf32_Sym));
+        sym1 = f1->map_start + symtab1->sh_offset + (i * SYMSIZE);
         sym1_name = f1->map_start + strtab1->sh_offset + sym1->st_name;
 
         if (sym1_name[0] != '\0')
@@ -405,8 +413,8 @@ void merge_files()
     off_t offset;
     Elf32_Ehdr header_out;
     Elf32_Shdr *section_table1, *section_table2, *section_table_out,
-        *section1, *section2, *section_out,
-        *symtab1, *symtab2, *strtab1, *strtab2;
+        *symtab1, *symtab2, *strtab1, *strtab2,
+        *section1, *section2, *section_out;
     Elf32_Sym *sym1, *sym2, modified_sym2;
     char *section_name1, *section_name2, *sym1_name;
 
@@ -426,14 +434,14 @@ void merge_files()
     // Copy header of f1 to the start of out.ro
     header_out = *f1->header;
     header_out.e_shoff = 0;
-    write(out_fd, &header_out, sizeof(Elf32_Ehdr));
+    write(out_fd, &header_out, HEDSIZE);
 
     section_table1 = (Elf32_Shdr *)(f1->map_start + f1->header->e_shoff);
     section_table2 = (Elf32_Shdr *)(f2->map_start + f2->header->e_shoff);
 
     // Copy f1 section header table to memory
-    section_table_out = malloc(sizeof(Elf32_Shdr) * f1->header->e_shnum);
-    memcpy(section_table_out, section_table1, sizeof(Elf32_Shdr) * f1->header->e_shnum);
+    section_table_out = malloc(SECSIZE * f1->header->e_shnum);
+    memcpy(section_table_out, section_table1, SECSIZE * f1->header->e_shnum);
 
     // Loop over the entries of the new section header table
     for (i = 0; i < header_out.e_shnum; i++)
@@ -472,19 +480,19 @@ void merge_files()
                  strcmp(section_name1, ".dynsym") == 0)
         {
             section_out->sh_offset = lseek(out_fd, 0, SEEK_END);
-            section_out->sh_entsize = sizeof(Elf32_Sym);
+            section_out->sh_entsize = SYMSIZE;
 
             // Handle symbol table
             symtab1 = section1;
             symtab2 = get_table(f2, section_name1);
             strtab1 = get_table(f1, ".strtab");
             strtab2 = get_table(f2, ".strtab");
-            symbols1_num = symtab1->sh_size / sizeof(Elf32_Sym);
-            symbols2_num = symtab2->sh_size / sizeof(Elf32_Sym);
+            symbols1_num = symtab1->sh_size / SYMSIZE;
+            symbols2_num = symtab2->sh_size / SYMSIZE;
 
             for (k = 0; k < symbols1_num; k++)
             {
-                sym1 = f1->map_start + symtab1->sh_offset + (k * sizeof(Elf32_Sym));
+                sym1 = f1->map_start + symtab1->sh_offset + (k * SYMSIZE);
 
                 if (sym1->st_shndx == SHN_UNDEF)
                 {
@@ -494,13 +502,13 @@ void merge_files()
                     {
                         modified_sym2 = *sym2;
                         modified_sym2.st_name += strtab1->sh_size;
-                        write(out_fd, &modified_sym2, sizeof(Elf32_Sym));
+                        write(out_fd, &modified_sym2, SYMSIZE);
                     }
                     else
-                        section_out->sh_size -= sizeof(Elf32_Sym);
+                        section_out->sh_size -= SYMSIZE;
                 }
                 else
-                    write(out_fd, sym1, sizeof(Elf32_Sym));
+                    write(out_fd, sym1, SYMSIZE);
             }
 
             header_out.e_shoff += section_out->sh_size;
@@ -513,12 +521,14 @@ void merge_files()
         }
     }
 
+    // Append new section table and modify its offset in the new header
     offset = lseek(out_fd, 0, SEEK_END);
-    write(out_fd, section_table_out, sizeof(Elf32_Shdr) * header_out.e_shnum);
+    write(out_fd, section_table_out, SECSIZE * header_out.e_shnum);
     header_out.e_shoff = offset;
     lseek(out_fd, 0, SEEK_SET);
-    write(out_fd, &header_out, sizeof(Elf32_Ehdr));
+    write(out_fd, &header_out, HEDSIZE);
 
+    printf("\nFiles merged successfully into 'out.ro'\n");
     close(out_fd);
     free(section_table_out);
 }
