@@ -520,6 +520,7 @@ void merge_files()
     write(out_fd, &header_out, sizeof(Elf32_Ehdr));
 
     close(out_fd);
+    free(section_table_out);
 }
 
 void print_menu(fun_desc menu[])
