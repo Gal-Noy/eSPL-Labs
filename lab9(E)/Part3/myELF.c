@@ -454,8 +454,7 @@ void merge_files()
         if (section1->sh_type != SHN_UNDEF &&
             (strcmp(section_name1, ".text") == 0 ||
              strcmp(section_name1, ".data") == 0 ||
-             strcmp(section_name1, ".rodata") == 0 ||
-             strcmp(section_name1, ".strtab") == 0))
+             strcmp(section_name1, ".rodata") == 0))
         {
             // Copy section from f1 to output file
             section_out->sh_offset = lseek(out_fd, 0, SEEK_END);
@@ -501,7 +500,7 @@ void merge_files()
                     if (sym2 && sym2->st_shndx != SHN_UNDEF)
                     {
                         modified_sym2 = *sym2;
-                        modified_sym2.st_name += strtab1->sh_size;
+                        modified_sym2.st_name = sym1->st_name;
                         write(out_fd, &modified_sym2, SYMSIZE);
                     }
                     else
