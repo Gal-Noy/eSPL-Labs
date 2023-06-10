@@ -5,5 +5,6 @@ myELF: myELF.o
 
 myELF.o: myELF.c
 	gcc -g -m32 -Wall -c myELF.c
+
 clean:
 	rm -f myELF.o myELF

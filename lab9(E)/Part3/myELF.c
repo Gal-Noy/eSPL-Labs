@@ -90,9 +90,9 @@ void print_elf_info(elf_file *f)
         header->e_ident[EI_MAG2] != ELFMAG2)
     {
         printf("Not a valid ELF file.\n");
-        munmap(f->map_start, f->len);
         close(f->fd);
         f->fd = -1;
+        return;
     }
 
     // Get the encoding scheme of the object file
@@ -199,7 +199,7 @@ char *type_to_string(int type)
 void psn(elf_file *f)
 {
     int i;
-    Elf32_Shdr *sections_table = (Elf32_Shdr *)(f->map_start + f->header->e_shoff);
+    Elf32_Shdr *sections_table = (Elf32_Shdr *)(f->map_start + f->header->e_shoff), *section;
     Elf32_Shdr *sections_names_raw = (Elf32_Shdr *)(sections_table + f->header->e_shstrndx);
     char *sections_names = f->map_start + sections_names_raw->sh_offset;
 
@@ -213,10 +213,10 @@ void psn(elf_file *f)
            "[Nr]", "Name", "Address", "Offset", "Size", "Type");
     for (i = 0; i < f->header->e_shnum; i++)
     {
-        Elf32_Shdr section = sections_table[i];
+        section = &sections_table[i];
 
         printf("[%2d] %-20s %-12.08x %-12.06x %-12.06x %-12s\n",
-               i, sections_names + section.sh_name, section.sh_addr, section.sh_offset, section.sh_size, type_to_string(section.sh_type));
+               i, sections_names + section->sh_name, section->sh_addr, section->sh_offset, section->sh_size, type_to_string(section->sh_type));
     }
 }
 void print_section_names()
@@ -277,7 +277,7 @@ void print_table(elf_file *f, char *table_name)
 
     if (!sym_table)
     {
-        fprintf(stderr, "\nError: Can't find symbol table '%s' offset\n", table_name);
+        fprintf(stderr, "\nCan't find symbol table '%s' offset\n", table_name);
         return;
     }
 
@@ -340,7 +340,7 @@ Elf32_Sym *search_sym2(int symbols2_num, Elf32_Shdr *symtab2, Elf32_Shdr *strtab
     {
         sym2 = f2->map_start + symtab2->sh_offset + (i * sizeof(Elf32_Sym));
         sym2_name = f2->map_start + strtab2->sh_offset + sym2->st_name;
-        if (sym2_name[0] != '\0' && strcmp(sym1_name, sym2_name) == 0)
+        if (strcmp(sym1_name, sym2_name) == 0)
             return sym2;
     }
     return NULL;
@@ -398,7 +398,129 @@ void check_files()
     if (debug_mode)
         fprintf(stderr, "\nSymbol conflict check complete.\n");
 }
-void merge_files() { printf("\nNot implemented yet.\n"); }
+
+void merge_files()
+{
+    int i, j, k, out_fd, symbols1_num, symbols2_num;
+    off_t offset;
+    Elf32_Ehdr header_out;
+    Elf32_Shdr *section_table1, *section_table2, *section_table_out,
+        *section1, *section2, *section_out,
+        *symtab1, *symtab2, *strtab1, *strtab2;
+    Elf32_Sym *sym1, *sym2, modified_sym2;
+    char *section_name1, *section_name2, *sym1_name;
+
+    if (files_num < 2)
+    {
+        fprintf(stderr, "\nError: Not enough ELF files loaded.\n");
+        return;
+    }
+
+    out_fd = open("out.ro", O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    if (out_fd < 0)
+    {
+        perror("Failed to create out.ro");
+        return;
+    }
+
+    // Copy header of f1 to the start of out.ro
+    header_out = *f1->header;
+    header_out.e_shoff = 0;
+    write(out_fd, &header_out, sizeof(Elf32_Ehdr));
+
+    section_table1 = (Elf32_Shdr *)(f1->map_start + f1->header->e_shoff);
+    section_table2 = (Elf32_Shdr *)(f2->map_start + f2->header->e_shoff);
+
+    // Copy f1 section header table to memory
+    section_table_out = malloc(sizeof(Elf32_Shdr) * f1->header->e_shnum);
+    memcpy(section_table_out, section_table1, sizeof(Elf32_Shdr) * f1->header->e_shnum);
+
+    // Loop over the entries of the new section header table
+    for (i = 0; i < header_out.e_shnum; i++)
+    {
+        section_out = &section_table_out[i];
+        section1 = &section_table1[i];
+        section_name1 = f1->map_start + (section_table1 + f1->header->e_shstrndx)->sh_offset + section1->sh_name;
+
+        // Check if mergable section
+        if (section1->sh_type != SHN_UNDEF &&
+            (strcmp(section_name1, ".text") == 0 ||
+             strcmp(section_name1, ".data") == 0 ||
+             strcmp(section_name1, ".rodata") == 0 ||
+             strcmp(section_name1, ".strtab") == 0))
+        {
+            // Copy section from f1 to output file
+            section_out->sh_offset = lseek(out_fd, 0, SEEK_END);
+            write(out_fd, f1->map_start + section1->sh_offset, section1->sh_size);
+            header_out.e_shoff += section_out->sh_size;
+
+            // Find section in f2 and concatenate it to the output file
+            for (j = 0; j < f2->header->e_shnum; j++)
+            {
+                section2 = &section_table2[j];
+                section_name2 = f2->map_start + (section_table2 + f2->header->e_shstrndx)->sh_offset + section2->sh_name;
+                if (strcmp(section_name1, section_name2) == 0)
+                {
+                    write(out_fd, f2->map_start + section2->sh_offset, section2->sh_size);
+                    section_out->sh_size += section2->sh_size;
+                    header_out.e_shoff += section_out->sh_size;
+                    break;
+                }
+            }
+        }
+        else if (strcmp(section_name1, ".symtab") == 0 ||
+                 strcmp(section_name1, ".dynsym") == 0)
+        {
+            section_out->sh_offset = lseek(out_fd, 0, SEEK_END);
+            section_out->sh_entsize = sizeof(Elf32_Sym);
+
+            // Handle symbol table
+            symtab1 = section1;
+            symtab2 = get_table(f2, section_name1);
+            strtab1 = get_table(f1, ".strtab");
+            strtab2 = get_table(f2, ".strtab");
+            symbols1_num = symtab1->sh_size / sizeof(Elf32_Sym);
+            symbols2_num = symtab2->sh_size / sizeof(Elf32_Sym);
+
+            for (k = 0; k < symbols1_num; k++)
+            {
+                sym1 = f1->map_start + symtab1->sh_offset + (k * sizeof(Elf32_Sym));
+
+                if (sym1->st_shndx == SHN_UNDEF)
+                {
+                    sym1_name = f1->map_start + strtab1->sh_offset + sym1->st_name;
+                    sym2 = search_sym2(symbols2_num, symtab2, strtab2, sym1_name);
+                    if (sym2 && sym2->st_shndx != SHN_UNDEF)
+                    {
+                        modified_sym2 = *sym2;
+                        modified_sym2.st_name += strtab1->sh_size;
+                        write(out_fd, &modified_sym2, sizeof(Elf32_Sym));
+                    }
+                    else
+                        section_out->sh_size -= sizeof(Elf32_Sym);
+                }
+                else
+                    write(out_fd, sym1, sizeof(Elf32_Sym));
+            }
+
+            header_out.e_shoff += section_out->sh_size;
+        }
+        else
+        { // Any other section, copy from f1 as is.
+            section_out->sh_offset = lseek(out_fd, 0, SEEK_END);
+            write(out_fd, f1->map_start + section1->sh_offset, section1->sh_size);
+            header_out.e_shoff += section_out->sh_size;
+        }
+    }
+
+    offset = lseek(out_fd, 0, SEEK_END);
+    write(out_fd, section_table_out, sizeof(Elf32_Shdr) * header_out.e_shnum);
+    header_out.e_shoff = offset;
+    lseek(out_fd, 0, SEEK_SET);
+    write(out_fd, &header_out, sizeof(Elf32_Ehdr));
+
+    close(out_fd);
+}
 
 void print_menu(fun_desc menu[])
 {
