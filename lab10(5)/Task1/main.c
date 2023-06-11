@@ -85,10 +85,11 @@ void print_phdr_info(Elf32_Phdr *phdr, int phdr_num)
 
 int foreach_phdr(void *map_start, void (*func)(Elf32_Phdr *, int), int arg)
 {
+    int i;
     Elf32_Ehdr *header = (Elf32_Ehdr *)map_start;
     Elf32_Phdr *phdr = (Elf32_Phdr *)(map_start + header->e_phoff);
 
-    for (int i = 0; i < header->e_phnum; i++)
+    for (i = 0; i < header->e_phnum; i++)
         func(&phdr[i], i);
 
     return 0;
@@ -96,6 +97,7 @@ int foreach_phdr(void *map_start, void (*func)(Elf32_Phdr *, int), int arg)
 
 int main(int argc, char *argv[])
 {
+    int fd;
     char *file_name;
     void *map_start;
     size_t length;
@@ -107,7 +109,7 @@ int main(int argc, char *argv[])
     }
 
     file_name = argv[1];
-    int fd = open(file_name, O_RDONLY);
+    fd = open(file_name, O_RDONLY);
     if (fd == -1)
     {
         perror("Failed to open file");

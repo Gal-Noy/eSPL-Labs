@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
-#include <sys/types.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <elf.h>
@@ -11,7 +10,6 @@ void *map_start;
 Elf32_Ehdr *header;
 
 extern int startup(int argc, char **argv, void (*start)());
-
 char *get_flags(Elf32_Word flags)
 {
     switch (flags)
@@ -23,15 +21,15 @@ char *get_flags(Elf32_Word flags)
     case 2:
         return "W";
     case 3:
-        return "WE";
+        return "W E";
     case 4:
         return "R";
     case 5:
-        return "RE";
+        return "R E";
     case 6:
-        return "RW";
+        return "R W";
     case 7:
-        return "RWE";
+        return "R W E";
     }
     return "ERROR";
 }
@@ -113,7 +111,12 @@ void load_phdr(Elf32_Phdr *phdr, int fd)
         vaddress = (void *)(phdr->p_vaddr & 0xfffff000);
         offset = phdr->p_offset & 0xfffff000;
         padding = phdr->p_vaddr & 0xfff;
-        address = mmap(vaddress, phdr->p_memsz + padding, get_prot_flags(phdr->p_flags), MAP_FIXED | MAP_PRIVATE, fd, offset);
+        address = mmap(vaddress,
+                       phdr->p_memsz + padding,
+                       get_prot_flags(phdr->p_flags),
+                       MAP_FIXED | MAP_PRIVATE,
+                       fd,
+                       offset);
         if (address == MAP_FAILED)
         {
             perror("mmap failed");
@@ -124,13 +127,23 @@ void load_phdr(Elf32_Phdr *phdr, int fd)
 }
 int foreach_phdr(void *map_start, void (*func)(Elf32_Phdr *, int), int arg)
 {
+    int i;
     Elf32_Phdr *phdr = (Elf32_Phdr *)(map_start + header->e_phoff);
 
     // Print readelf-l
     printf("%-12s %-12s %-12s %-12s %-12s %-12s %-12s %-12s %-12s %-12s\n",
-           "Type", "Offset", "VirtAddr", "PhysAddr", "FileSiz", "MemSiz", "Flg", "ProtFlg", "MapFlg", "Align");
+           "Type",
+           "Offset",
+           "VirtAddr",
+           "PhysAddr",
+           "FileSiz",
+           "MemSiz",
+           "Flg",
+           "ProtFlg",
+           "MapFlg",
+           "Align");
 
-    for (int i = 0; i < header->e_phnum; i++)
+    for (i = 0; i < header->e_phnum; i++)
         func(map_start + header->e_phoff + (i * header->e_phentsize), arg);
 
     return 0;
@@ -145,7 +158,7 @@ int load_file(char *file_name)
         exit(EXIT_FAILURE);
     }
 
-    if ((length = lseek(fd, 0, SEEK_END)) == -1)
+    if ((length = lseek(fd, 0, SEEK_END)) < 0)
     {
         perror("Failed to determine file size");
         close(fd);
