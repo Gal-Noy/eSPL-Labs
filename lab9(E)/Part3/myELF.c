@@ -236,7 +236,7 @@ void print_section_names()
         fprintf(stderr, "\nError: No files loaded.\n");
 }
 
-char *get_section_idx(Elf32_Section index)
+char *get_section_idx_str(Elf32_Section index)
 {
     switch (index)
     {
@@ -299,7 +299,7 @@ void print_table(elf_file *f, char *table_name)
     {
         curr_symbol = f->map_start + sym_table->sh_offset + (i * SYMSIZE);
 
-        sec_idx = get_section_idx(curr_symbol->st_shndx);
+        sec_idx = get_section_idx_str(curr_symbol->st_shndx);
 
         if (sec_idx)
             section_name = "";
@@ -407,9 +407,31 @@ void check_files()
         fprintf(stderr, "\nSymbol conflict check complete.\n");
 }
 
+int get_f1_section_index(Elf32_Shdr *section2)
+{
+    int i;
+    Elf32_Shdr *sections_table1, *sections_table2, *curr_section;
+    char *section2_name, *curr_name;
+
+    sections_table1 = (Elf32_Shdr *)(f1->map_start + f1->header->e_shoff);
+    sections_table2 = (Elf32_Shdr *)(f2->map_start + f2->header->e_shoff);
+
+    section2_name = f2->map_start + (sections_table2 + f2->header->e_shstrndx)->sh_offset + section2->sh_name;
+
+    for (i = 1; i < f1->header->e_shnum; i++)
+    {
+        curr_section = &sections_table1[i];
+        curr_name = f1->map_start + (sections_table1 + f1->header->e_shstrndx)->sh_offset + curr_section->sh_name;
+        if (strcmp(curr_name, section2_name) == 0)
+            return i;
+    }
+
+    // Return an invalid index if the section is not found
+    return -1;
+}
 void merge_files()
 {
-    int i, j, k, out_fd, symbols1_num, symbols2_num;
+    int i, j, k, out_fd, symbols1_num, symbols2_num, section_f1_index;
     off_t offset;
     Elf32_Ehdr header_out;
     Elf32_Shdr *section_table1, *section_table2, *section_table_out,
@@ -444,7 +466,7 @@ void merge_files()
     memcpy(section_table_out, section_table1, SECSIZE * f1->header->e_shnum);
 
     // Loop over the entries of the new section header table
-    for (i = 0; i < header_out.e_shnum; i++)
+    for (i = 1; i < header_out.e_shnum; i++)
     {
         section_out = &section_table_out[i];
         section1 = &section_table1[i];
@@ -462,7 +484,7 @@ void merge_files()
             header_out.e_shoff += section_out->sh_size;
 
             // Find section in f2 and concatenate it to the output file
-            for (j = 0; j < f2->header->e_shnum; j++)
+            for (j = 1; j < f2->header->e_shnum; j++)
             {
                 section2 = &section_table2[j];
                 section_name2 = f2->map_start + (section_table2 + f2->header->e_shstrndx)->sh_offset + section2->sh_name;
@@ -501,6 +523,12 @@ void merge_files()
                     {
                         modified_sym2 = *sym2;
                         modified_sym2.st_name = sym1->st_name;
+
+                        section2 = f2->map_start + f2->header->e_shoff + (sym2->st_shndx * f2->header->e_shentsize);
+                        section_f1_index = get_f1_section_index(section2);
+                        if (section_f1_index > 0)
+                            modified_sym2.st_shndx = section_f1_index;
+
                         write(out_fd, &modified_sym2, SYMSIZE);
                     }
                     else
