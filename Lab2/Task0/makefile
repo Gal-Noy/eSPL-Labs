@@ -1,10 +1,19 @@
-all: count-words
+all: myshell looper
 
-count-words: count-words.o
-	gcc -g -m32 -Wall count-words.o -o count-words
+myshell: myshell.o LineParser.o
+	gcc -g -m32 -Wall myshell.o LineParser.o -o myshell
 
-count-words.o: count-words.c
-	gcc -g -m32 -Wall -c count-words.c -o count-words.o
+LineParser.o: LineParser.c LineParser.h
+	gcc -g -m32 -Wall -c LineParser.c
+
+myshell.o: myshell.c LineParser.h
+	gcc -g -m32 -Wall -c myshell.c
+
+looper: looper.o
+	gcc -g -m32 -Wall looper.c -o looper
+
+looper.o: looper.c
+	gcc -g -m32 -Wall -c looper.c -o looper.o
 
 clean:
-	rm -f *.o
+	rm -f *.o looper myshell

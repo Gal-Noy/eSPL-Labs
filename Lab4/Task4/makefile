@@ -1,21 +1,18 @@
-all: myshell mypipe
+all: hexeditplus digit_count
 
-myshell: myshell.o LineParser.o
-	gcc -g -m32 -Wall myshell.o LineParser.o -o myshell
+hexeditplus: task1.o
+	gcc -g -m32 -Wall task1.o -o hexeditplus
 
-LineParser.o: LineParser.c LineParser.h
-	gcc -g -m32 -Wall -c LineParser.c
+task1.o: task1.c
+	gcc -g -m32 -Wall -c task1.c
 
-myshell.o: myshell.c LineParser.h
-	gcc -g -m32 -Wall -c myshell.c
+digit_count: task4.o
+	gcc -g -m32 -Wall task4.o -o digit_count
 
-mypipe: mypipe.o
-	gcc -g -m32 -Wall mypipe.o -o mypipe
-
-mypipe.o: mypipe.c
-	gcc -g -m32 -Wall -c mypipe.c
+task4.o: task4.c
+	gcc -g -m32 -Wall -fno-pie -fno-stack-protector -c task4.c
 
 .PHONY: clean
 
 clean:
-	rm -f *.o myshell mypipe
+	rm -f *.o hexeditplus digit_count

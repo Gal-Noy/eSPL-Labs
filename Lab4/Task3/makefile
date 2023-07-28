@@ -1,19 +1,10 @@
-all: myshell looper
+all: hexeditplus
 
-myshell: myshell.o LineParser.o
-	gcc -g -m32 -Wall myshell.o LineParser.o -o myshell
+hexeditplus: hexeditplus.o
+	gcc -g -m32 -Wall hexeditplus.o -o hexeditplus
 
-LineParser.o: LineParser.c LineParser.h
-	gcc -g -m32 -Wall -c LineParser.c
-
-myshell.o: myshell.c LineParser.h
-	gcc -g -m32 -Wall -c myshell.c
-
-looper: looper.o
-	gcc -g -m32 -Wall looper.c -o looper
-
-looper.o: looper.c
-	gcc -g -m32 -Wall -c looper.c -o looper.o
-
+hexeditplus.o: hexeditplus.c
+	gcc -g -m32 -Wall -c hexeditplus.c
+	
 clean:
-	rm -f *.o looper myshell
+	rm -f *.o hexeditplus

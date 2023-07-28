@@ -1,10 +1,19 @@
-all: menu_map
+all: myshell looper
 
-menu_map: menu_map.o
-	gcc -g -m32 -Wall menu_map.o -o menu_map
+myshell: myshell.o LineParser.o
+	gcc -g -m32 -Wall myshell.o LineParser.o -o myshell
 
-menu_map.o: menu_map.c
-	gcc -g -m32 -Wall -c menu_map.c
+LineParser.o: LineParser.c LineParser.h
+	gcc -g -m32 -Wall -c LineParser.c
+
+myshell.o: myshell.c LineParser.h
+	gcc -g -m32 -Wall -c myshell.c
+
+looper: looper.o
+	gcc -g -m32 -Wall looper.c -o looper
+
+looper.o: looper.c
+	gcc -g -m32 -Wall -c looper.c -o looper.o
 
 clean:
-	rm -f *.o
+	rm -f *.o looper myshell

@@ -185,7 +185,6 @@ int main(int argc, char *argv[])
 
     fd = load_file(argv[1]);
     header = (Elf32_Ehdr *)map_start;
-
     foreach_phdr(map_start, load_phdr, fd);
     startup(argc - 1, argv + 1, (void *)(header->e_entry));
 

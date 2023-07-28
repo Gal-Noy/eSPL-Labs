@@ -1,10 +1,13 @@
-all: menu_map
+all: myshell
 
-menu_map: menu_map.o
-	gcc -g -m32 -Wall menu_map.o -o menu_map
+myshell: myshell.o LineParser.o
+	gcc -g -m32 -Wall myshell.o LineParser.o -o myshell
 
-menu_map.o: menu_map.c
-	gcc -g -m32 -Wall -c menu_map.c
+LineParser.o: LineParser.c LineParser.h
+	gcc -g -m32 -Wall -c LineParser.c
+
+myshell.o: myshell.c LineParser.h
+	gcc -g -m32 -Wall -c myshell.c
 
 clean:
-	rm -f *.o
+	rm -f *.o myshell
